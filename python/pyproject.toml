@@ -1,0 +1,21 @@
+[build-system]
+requires = [
+    "setuptools",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+
+[testenv:tests]
+changedir = tests
+deps =
+    coverage[toml]
+    ipympl
+
+commands =
+    coverage run -m unittest discover -p "*.py"
+"""
