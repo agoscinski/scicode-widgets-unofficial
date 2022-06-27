@@ -1,12 +1,15 @@
-from abc import abstractmethod
 import warnings
 
+import os
 import sys
 import traitlets
-import matplotlib.pyplot as plt
 import numpy as np
+import json
+
+import traitlets
 
 from collections.abc import Iterable
+# TODO remove unecessary imports
 from ipywidgets import (
     Output,
     FloatSlider,
@@ -20,17 +23,294 @@ from ipywidgets import (
     Button,
     HTML,
     Text,
+    Textarea,
     Label,
 )
-import IPython.display
-import inspect
 
-# TODO save function
+from ._answer import Answer
 
-# TODO(low) need to consider traits
-def copy_widget(widget):
-    signature = inspect.getfullargspec(type(widget).__init__)
-    return type(widget)(*[getattr(widget, arg) for arg in signature.args[1:]])
+class CodeDemo(VBox, Answer):
+    """
+    Widget to demonstrate code interactively in a variety of ways.
+
+    A code demo is in essence a combination of the widgets: one `code_input` + one `input_parameters_box` + one or more `code_visualizer`. Any widget can also be set None and is then not displayed.
+
+
+    Parameters
+    ----------
+        code_input : WidgetCodeInput, default=None
+            An widget supporting the input of code usually for a student to fill in a solution.
+        input_parameters_box : ParametersBox, default=None
+        update_on_input_parameter_change : bool, default=True
+            Determines if the visualizers are instantly updated on a parameter change of `input_parameters_box`. If processing the code is computationally demanding, this parameter should be set to False for a better user experience. The user then has to manually update by a button click.
+        update_visualizers : function, default=None
+            It processes the code `code_input` and to updae the `visualizers`. The `update_visualizers` function is assumed to support the signature
+            def update_visualizers(*input_parameters_box.paramaters, code_input if not None, visualizers if not None)
+        visualizers : Iterable of Widgets or Widget, default=None
+            Any kind of widget that can be displayed. Optionally the visualizer has a `before_visualizers_update` and/or a `after_visualizers_update` function which allows set up the visualizer before and after the `update_visualizers` function is executed
+        code_checker : CodeChecker
+            It handles the correctness check of the code in `code_input`.
+        separate_check_and_update_buttons: bool, default=False
+            It handles the correctness check of the code in `code_input`.
+
+    """
+
+    def __init__(
+        self,
+        code_input=None,
+        input_parameters_box=None,
+        update_on_input_parameter_change=True,
+        visualizers=None,
+        update_visualizers=None,
+        code_checker=None,
+        separate_check_and_update_buttons=False,
+    ):
+
+        self._code_input = code_input
+        self._input_parameters_box = input_parameters_box
+
+        if visualizers is not None:
+            if not (isinstance(visualizers, Iterable)):
+                self._visualizers = [visualizers]
+            else:
+                self._visualizers = visualizers
+        else:
+            self._visualizers = []
+
+        self._update_on_input_parameter_change = update_on_input_parameter_change
+        self._update_visualizers = update_visualizers
+        self._code_checker = code_checker
+        self._separate_check_and_update_buttons = separate_check_and_update_buttons
+        
+        self._save_button = None
+        self._on_save_callback = None
+        self._save_output = None
+
+        if (update_on_input_parameter_change) and (input_parameters_box is None):
+            warnings.warn(
+                "`update_on_input_parameter_change` is True, but `input_parameters_box` is None. `update_on_input_parameter_change` does not affect anything without a `input_parameters_box`"
+            )
+        # TODO should this be mentioned to the user?
+        # if len(self._visualizers) == 0 and self._update_visualizers is not None:
+        #    warnings.warn("self._update_visualizers is given without visualizers.")
+        if len(self._visualizers) > 0 and self._update_visualizers is None:
+            raise ValueError(
+                "Non-empty not None `visualizers` are given but without a `update_visualizers` function. The `visualizers` are used by the code demo"
+            )
+
+        if self._update_on_input_parameter_change:
+            self._input_parameters_box.observe(self.update, "value")
+
+        self._error_output = Output(layout=Layout(width="100%", height="100%"))
+
+        if self.has_check_button() and self.has_update_button():
+            if self._separate_check_and_update_buttons:
+                check_button = Button(description="Check", layout=Layout(width="200px", height="100%"))
+                check_button.on_click(self.check)
+                update_button = Button(description="Update", layout=Layout(width="200px", height="100%"))
+                update_button.on_click(self.update)
+                self._demo_button_box = HBox([check_button, update_button])
+            else:
+                check_and_update_button = Button(description="Check & update", layout=Layout(width="250px", height="100%"))
+                check_and_update_button.on_click(self.check_and_update)
+                self._demo_button_box = HBox([check_and_update_button])
+        elif not (self.has_check_button()) and self.has_update_button():
+            update_button = Button(description="Update", layout=Layout(width="200px", height="100%"))
+            update_button.on_click(self.update)
+            self._demo_button_box = HBox([update_button])
+        elif self.has_check_button() and not (self.has_update_button()):
+            check_button = Button(description="Check", layout=Layout(width="200px", height="100%"))
+            check_button.on_click(self.check)
+            self._demo_button_box = HBox([check_button])
+        else:
+            self._demo_button_box = None
+
+        self._validation_text = HTML(value="", layout=Layout(width="100%", height="100%"))
+
+        self._error_output = Output(layout=Layout(width="100%", height="100%"))
+
+        demo_widgets = []
+        if self._code_input is not None:
+            demo_widgets.append(self._code_input)
+
+        if self.has_check_button():
+            self._code_input_button_panel = HBox(
+                                    [self._demo_button_box, self._validation_text],
+                                    layout=Layout(align_items="flex-start", width='100%'),
+                                )
+            demo_widgets.append(self._code_input_button_panel
+            )
+            demo_widgets.append(self._error_output)
+        elif not (self.has_check_button()) and self.has_update_button():
+            self._code_input_button_panel = self._demo_button_box
+            demo_widgets.append(self._code_input_button_panel)
+        else:
+            self._code_input_button_panel =  HBox([], layout=Layout(align_items="flex-start", width='100%'))
+
+        if input_parameters_box is not None:
+            demo_widgets.append(self._input_parameters_box)
+
+        demo_widgets.extend(self._visualizers)
+
+        super().__init__(demo_widgets)
+
+        # needed for chemiscope, chemiscope does not acknowledge updates of settings
+        # until the widget has been displayed
+        # TODO why this function does not work "self.on_displayed(self, self.update)"  but this one?
+        self._display_callbacks.register_callback(self.update)
+
+    def has_update_button(self):
+        # to cover the cases where no code input is used
+        without_code_input_demo = (
+            (len(self._visualizers) > 0)
+            and (not (self._update_on_input_parameter_change))
+            and (self._input_parameters_box is not None)
+        )
+        with_code_input_demo = (
+            len(self._visualizers) > 0 and self._code_input is not None
+        )
+        return without_code_input_demo or with_code_input_demo
+
+    def has_check_button(self):
+        return (self._code_checker is not None) and (self._code_checker.nb_checks > 0)
+
+    def check_and_update(self, change=None):
+        self.check(change)
+        self.update(change)
+
+    def check(self, change=None):
+        """
+        Returns int number of failed checks 
+        """
+        if self.has_check_button():
+            self.check_button.disabled = True
+        if self._code_checker is None:
+            return 0
+        self._error_output.clear_output()
+        nb_failed_checks = 0
+        with self._error_output:
+            nb_failed_checks = self._code_checker.check(self._code_input)
+
+        self._validation_text.value = "&nbsp;" * 4
+        if nb_failed_checks:
+            self._validation_text.value += f"   {nb_failed_checks} out of {self._code_checker.nb_checks} tests failed."
+        else:
+            self._validation_text.value += (
+                f"<span style='color:green'> All tests passed!</style>"
+            )
+        if self.has_check_button():
+            self.check_button.disabled = False
+        return nb_failed_checks
+    
+    @property
+    def save_button(self):
+        return self._save_button
+
+    @property
+    def answer_value(self):
+        return self.code_input.function_body
+
+    @answer_value.setter
+    def answer_value(self, new_answer_value):
+        self.code_input.function_body = new_answer_value
+
+    def on_save(self, callback):
+        if self._save_button is None and self._on_save_callback is None:
+            self._init_save_widget(callback)
+            self._save_output = self.error_output
+            save_widget = HBox([VBox([self._save_button, self._save_output],
+                        layout = Layout(display='flex',
+                        flex_flow='column',
+                        align_items='flex-end',
+                        width='100%'))], layout=Layout(align_items="flex-end", width='100%')
+            )
+            #self._demo_button_box.children += (save_widget,)
+            self._code_input_button_panel.children += (save_widget,)
+        else:
+            self._update_save_widget(self, callback)
+
+
+    @property
+    def update_button(self):
+        # check and update button can be the same
+        if self.has_update_button():
+            if len(self._demo_button_box.children) > 1:
+                return self._demo_button_box.children[1]
+            else:
+                return self._demo_button_box.children[0]
+        else:
+            return None
+
+    @property
+    def check_button(self):
+        # check and update button can be the same
+        if self.has_check_button():
+            return self._demo_button_box.children[0]
+        else:
+            return None
+
+    def update(self, change=None):
+        if self.has_update_button():
+            self.update_button.disabled = True
+
+        if self._visualizers is not None:
+            for visualizer in self._visualizers:
+                if hasattr(visualizer, "before_visualizers_update"):
+                    visualizer.before_visualizers_update()
+
+        if self._update_visualizers is not None:
+            if self._input_parameters_box is None:
+                parameters = []
+            else:
+                parameters = self._input_parameters_box.parameters
+
+            if self._code_input is not None and self._visualizers is not None:
+                self._update_visualizers(
+                    *parameters, self._code_input, self._visualizers
+                )
+            elif self._code_input is not None and self._visualizers is None:
+                self._update_visualizers(*parameters, self._code_input)
+            elif self._code_input is None and self._visualizers is not None:
+                self._update_visualizers(*parameters, self._visualizers)
+            else:
+                self._update_visualizers(*parameters)
+
+        if self._visualizers is not None:
+            for visualizer_output in self._visualizers:
+                if hasattr(visualizer, "after_visualizers_update"):
+                    visualizer.after_visualizers_update()
+
+        if self.has_update_button():
+            self.update_button.disabled = False
+
+    @property
+    def code_input(self):
+        return self._code_input
+
+    @property
+    def input_parameters_box(self):
+        return self._input_parameters_box
+
+    @property
+    def update_on_input_parameter_change(self):
+        return self._update_on_input_parameter_change
+
+    @property
+    def visualizers(self):
+        return self._visualizers
+
+    @property
+    def update_visualizers(self):
+        return self._update_visualizers
+
+    @property
+    def code_checker(self):
+        return self._code_checker
+
+    @property
+    def separate_check_and_update_buttons(self):
+        return self._separate_check_and_update_buttons
+
 
 
 # TODO(low) checkbox
@@ -194,6 +474,7 @@ class ParametersBox(VBox):
 class CodeChecker:
     """
     reference_code_parameters : dict
+    equality_function : function, default=np.allclose
     """
 
     def __init__(self, reference_code_parameters, equality_function=None):
@@ -258,333 +539,3 @@ class CodeChecker:
             out = student_code_wrapper(*x)
             nb_failed_checks += int(not (self.equality_function(y, out)))
         return nb_failed_checks
-
-
-class CodeDemo(VBox):
-    """
-    Widget to demonstrate code interactively in a variety of ways.
-
-    A code demo is in essence a combination of the widgets: one `code_input` + one `input_parameters_box` + one or more `code_visualizer`. Any widget can also be set None and is then not displayed.
-
-
-    Parameters
-    ----------
-        code_input : WidgetCodeInput, default=None
-            An widget supporting the input of code usually for a student to fill in a solution.
-        input_parameters_box : ParametersBox, default=None
-        update_on_input_parameter_change : bool, default=True
-            Determines if the visualizers are instantly updated on a parameter change of `input_parameters_box`. If processing the code is computationally demanding, this parameter should be set to False for a better user experience. The user then has to manually update by a button click.
-        update_visualizers : function, default=None
-            It processes the code `code_input` and to updae the `visualizers`. The `update_visualizers` function is assumed to support the signature
-            def update_visualizers(*input_parameters_box.paramaters, code_input if not None, visualizers if not None)
-        visualizers : displayable Widget, default=None
-            Any kind of widget that can be displayed. Optionally the visualizer has a `before_visualizers_update` and/or a `after_visualizers_update` function which allows set up the visualizer before and after the `update_visualizers` function is executed
-        code_checker : CodeChecker
-            It handles the correctness check of the code in `code_input`.
-        separate_check_and_update_buttons: bool, default=False
-            It handles the correctness check of the code in `code_input`.
-
-    """
-
-    def __init__(
-        self,
-        code_input=None,
-        input_parameters_box=None,
-        update_on_input_parameter_change=True,
-        visualizers=None,
-        update_visualizers=None,
-        code_checker=None,
-        separate_check_and_update_buttons=False,
-    ):
-
-        self._code_input = code_input
-        self._input_parameters_box = input_parameters_box
-
-        if visualizers is not None:
-            if not (isinstance(visualizers, Iterable)):
-                self._visualizers = [visualizers]
-            else:
-                self._visualizers = visualizers
-        else:
-            self._visualizers = []
-
-        self._update_on_input_parameter_change = update_on_input_parameter_change
-        self._update_visualizers = update_visualizers
-        self._code_checker = code_checker
-        self._separate_check_and_update_buttons = separate_check_and_update_buttons
-
-        if (
-            self._input_parameters_box is None
-            and self._update_on_input_parameter_change
-        ):
-            warnings.warn(
-                "`update_on_input_parameter_change` is True, but `input_parameters_box` is None. `update_on_input_parameter_change` does not affect anything without a `input_parameters_box`"
-            )
-        # TODO should this be mentioned to the user?
-        # if len(self._visualizers) == 0 and self._update_visualizers is not None:
-        #    warnings.warn("self._update_visualizers is given without visualizers.")
-        if len(self._visualizers) > 0 and self._update_visualizers is None:
-            raise ValueError(
-                "Non-empty not None `visualizers` are given but without a `update_visualizers` function. The `visualizers` are used by the code demo"
-            )
-
-        if self._update_on_input_parameter_change:
-            self._input_parameters_box.observe(self.update, "value")
-
-        self._error_output = Output(layout=Layout(width="100%", height="100%"))
-
-        if self.has_check_button() and self.has_update_button():
-            if self._separate_check_and_update_buttons:
-                check_button = Button(description="Check")
-                check_button.on_click(self.check)
-                update_button = Button(description="Update")
-                update_button.on_click(self.update)
-                self._demo_button_box = HBox([check_button, update_button])
-            else:
-                check_and_update_button = Button(description="Check & update")
-                check_and_update_button.on_click(self.check_and_update)
-                self._demo_button_box = HBox([check_and_update_button])
-        elif not (self.has_check_button()) and self.has_update_button():
-            update_button = Button(description="Update")
-            update_button.on_click(self.update)
-            self._demo_button_box = HBox([update_button])
-        elif self.has_check_button() and not (self.has_update_button()):
-            check_button = Button(description="Check")
-            check_button.on_click(self.check)
-            self._demo_button_box = HBox([check_button])
-        else:
-            self._demo_button_box = None
-
-        self._validation_text = HTML(value="")
-
-        self._error_output = Output(layout=Layout(width="100%", height="100%"))
-
-        demo_widgets = []
-        if self._code_input is not None:
-            demo_widgets.append(self._code_input)
-
-        if self.has_check_button():
-            demo_widgets.append(
-                HBox(
-                    [self._demo_button_box, self._validation_text],
-                    layout=Layout(align_items="center"),
-                )
-            )
-            demo_widgets.append(self._error_output)
-        elif not (self.has_check_button()) and self.has_update_button():
-            demo_widgets.append(self._demo_button_box)
-
-        if input_parameters_box is not None:
-            demo_widgets.append(self._input_parameters_box)
-
-        demo_widgets.extend(self._visualizers)
-
-        super().__init__(demo_widgets)
-
-        # needed for chemiscope, chemiscope does not acknowledge updates of settings
-        # until the widget has been displayed
-        # TODO why this function does not work "self.on_displayed(self, self.update)"  but this one?
-        self._display_callbacks.register_callback(self.update)
-
-    def has_update_button(self):
-        # to cover the cases where no code input is used
-        without_code_input_demo = (
-            (len(self._visualizers) > 0)
-            and (not (self._update_on_input_parameter_change))
-            and (self._input_parameters_box is not None)
-        )
-        with_code_input_demo = (
-            len(self._visualizers) > 0 and self._code_input is not None
-        )
-        return without_code_input_demo or with_code_input_demo
-
-    def has_check_button(self):
-        return (self._code_checker is not None) and (self._code_checker.nb_checks > 0)
-
-    def check_and_update(self, change=None):
-        self.check(change)
-        self.update(change)
-
-    def check(self, change=None):
-        if self.has_check_button():
-            self.check_button.disabled = True
-        if self._code_checker is None:
-            return 0
-        self._error_output.clear_output()
-        nb_failed_checks = 0
-        with self._error_output:
-            nb_failed_checks = self._code_checker.check(self._code_input)
-
-        self._validation_text.value = "&nbsp;" * 4
-        if nb_failed_checks:
-            self._validation_text.value += f"   {nb_failed_checks} out of {self._code_checker.nb_checks} tests failed."
-        else:
-            self._validation_text.value += (
-                f"<span style='color:green'> All tests passed!</style>"
-            )
-        if self.has_check_button():
-            self.check_button.disabled = False
-        return nb_failed_checks
-
-    @property
-    def update_button(self):
-        if self.has_update_button():
-            if len(self._demo_button_box.children) > 1:
-                return self._demo_button_box.children[1]
-            else:
-                return self._demo_button_box.children[0]
-        else:
-            return None
-
-    @property
-    def check_button(self):
-        if self.has_check_button():
-            return self._demo_button_box.children[0]
-        else:
-            return None
-
-    def update(self, change=None):
-        if self.has_update_button():
-            self.update_button.disabled = True
-
-        if self._visualizers is not None:
-            for visualizer in self._visualizers:
-                if hasattr(visualizer, "before_visualizers_update"):
-                    visualizer.before_visualizers_update()
-
-        if self._update_visualizers is not None:
-            if self._input_parameters_box is None:
-                parameters = []
-            else:
-                parameters = self._input_parameters_box.parameters
-
-            if self._code_input is not None and self._visualizers is not None:
-                self._update_visualizers(
-                    *parameters, self._code_input, self._visualizers
-                )
-            elif self._code_input is not None and self._visualizers is None:
-                self._update_visualizers(*parameters, self._code_input)
-            elif self._code_input is None and self._visualizers is not None:
-                self._update_visualizers(*parameters, self._visualizers)
-            else:
-                self._update_visualizers(*parameters)
-
-        if self._visualizers is not None:
-            for visualizer_output in self._visualizers:
-                if hasattr(visualizer, "after_visualizers_update"):
-                    visualizer.after_visualizers_update()
-
-        if self.has_update_button():
-            self.update_button.disabled = False
-
-    @property
-    def code_input(self):
-        return self._code_input
-
-    @property
-    def input_parameters_box(self):
-        return self._input_parameters_box
-
-    @property
-    def update_on_input_parameter_change(self):
-        return self._update_on_input_parameter_change
-
-    @property
-    def visualizers(self):
-        return self._visualizers
-
-    @property
-    def update_visualizers(self):
-        return self._update_visualizers
-
-    @property
-    def code_checker(self):
-        return self._code_checker
-
-    @property
-    def separate_check_and_update_buttons(self):
-        return self._separate_check_and_update_buttons
-
-
-class CodeVisualizer:
-    """CodeDemo supports this interface to execute code before and after the update of the visualizers. It does not inherit from ABC, because then it would conflict with the inheritence of widgets."""
-
-    @abstractmethod
-    def before_visualizers_update(self):
-        raise NotImplementedError("before_visualizers_update has not been implemented.")
-
-    @abstractmethod
-    def after_visualizers_update(self):
-        raise NotImplementedError("after_visualizers_update has not been implemented.")
-
-
-class PyplotOutput(Output, CodeVisualizer):
-    """VBox"""
-
-    def __init__(self, figure):
-        self.figure = figure
-
-        super().__init__()
-
-        self.figure.canvas.toolbar_visible = True
-        self.figure.canvas.header_visible = False
-        self.figure.canvas.footer_visible = False
-        with self:
-            # self.figure.canvas.show() does not work, dont understand
-            # self.figure.show()
-            plt.show(self.figure.canvas)
-
-    def before_visualizers_update(self):
-        for ax in self.figure.get_axes():
-            if ax.has_data() or len(ax.artists) > 0:
-                ax.clear()
-
-    def after_visualizers_update(self):
-        pass
-
-
-class AnimationOutput(Output, CodeVisualizer):
-    def __init__(self, figure, verbose=True):
-        super().__init__()
-        self.figure = figure
-        self.animation = None
-        self.verbose = verbose
-
-    @property
-    def figure(self):
-        return self._figure
-
-    @figure.setter
-    def figure(self, new_figure):
-        new_figure.canvas.toolbar_visible = True
-        new_figure.canvas.header_visible = False
-        new_figure.canvas.footer_visible = False
-        plt.close(new_figure)
-        self._figure = new_figure
-
-    def before_visualizers_update(self):
-        self.clear_output()
-        for ax in self.figure.get_axes():
-            if ax.has_data() or len(ax.artists) > 0:
-                ax.clear()
-
-    def after_visualizers_update(self):
-        if self.animation is None:
-            return
-        with self:
-            if self.verbose:
-                print("Displaying animation...")
-            display(IPython.display.HTML(self.animation.to_jshtml()), display_id=True)
-
-
-class ClearedOutput(Output, CodeVisualizer):
-    """Mini-wrapper for Output to provide an output space that gets cleared when it is updated e.g. to print some output or reload a widget."""
-
-    def __init__(self):
-        super().__init__()
-
-    def before_visualizers_update(self):
-        self.clear_output()
-
-    def after_visualizers_update(self):
-        pass

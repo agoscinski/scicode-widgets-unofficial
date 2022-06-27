@@ -3,19 +3,29 @@ __version__ = "0.0.0"
 from ._code_demo import (
     CodeDemo,
     ParametersBox,
-    CodeChecker,
+    CodeChecker
+)
+from ._code_visualizer import (
+    CodeVisualizer,
     PyplotOutput,
     ClearedOutput,
-    AnimationOutput,
-    CodeVisualizer,
+    AnimationOutput
+)
+from ._answer import (
+    Answer,
+    AnswerRegistry,
+    TextareaAnswer
 )
 
 __all__ = [
     "CodeDemo",
     "ParametersBox",
     "CodeChecker",
+    "CodeVisualizer",
     "PyplotOutput",
     "ClearedOutput",
     "AnimationOutput",
-    "CodeVisualizer",
+    "Answer",
+    "AnswerRegistry"
+    "TextareaAnswer",
 ]
