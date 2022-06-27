@@ -217,8 +217,8 @@ class CodeDemo(VBox, Answer):
     def on_save(self, callback):
         if self._save_button is None and self._on_save_callback is None:
             self._init_save_widget(callback)
-            self._save_output = self.error_output
-            save_widget = HBox([VBox([self._save_button, self._save_output],
+            self._save_output = self._error_output
+            save_widget = HBox([VBox([self._save_button],
                         layout = Layout(display='flex',
                         flex_flow='column',
                         align_items='flex-end',
