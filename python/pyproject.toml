@@ -23,6 +23,11 @@ commands =
 changedir = examples
 allowlist_externals = /bin/bash
 
+deps =
+    ipympl
+    chemiscope
+    ase
+
 commands =
     bash -ec "\
         SCWIDGET_EXAMPLES=$PWD; \
