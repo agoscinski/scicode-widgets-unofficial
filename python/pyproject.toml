@@ -18,4 +18,19 @@ deps =
 
 commands =
     coverage run -m unittest discover -p "*.py"
+
+[testenv:examples]
+changedir = examples
+allowlist_externals = /bin/bash
+
+commands =
+    bash -ec "\
+        SCWIDGET_EXAMPLES=$PWD; \
+        for file in $(find . -name '*.ipynb' -not -path '*/\\.*'); do \
+            filename=$(basename $file); \
+            jupyter nbconvert \
+                --to notebook \
+                --output "$SCWIDGET_EXAMPLES/../.tox/examples/$filename" \
+                --execute "$file"; \
+    done"
 """

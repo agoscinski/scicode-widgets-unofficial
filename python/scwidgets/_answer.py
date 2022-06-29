@@ -1,4 +1,5 @@
 import os 
+import json
 
 from ipywidgets import (
     Output,
@@ -53,9 +54,13 @@ class AnswerRegistry(VBox):
     """
     A widget to enter the name of the learner, and to save the state of registered widgets to a .json file, and load them back afterwards.    
     """
+    @property
+    def prefix(self):
+        return self._prefix
+
+
     def __init__(self, prefix=None):
         self._prefix = prefix
-
 
         self._load_answers_button = Button(description="Load")
         self._load_answers_button.on_click(self._load_answers)
@@ -72,7 +77,7 @@ class AnswerRegistry(VBox):
     def _load_answers(self, change=""):
         """ Forces creation of answers file when not existing"""
         self.clear_output()
-        if (self.prefix is None) or (self.prefix == ""):
+        if (self._prefix is None) or (self._prefix == ""):
             answers_base_filename = self._author_name_text.value.replace(" ","")
         else:
             answers_base_filename = self._prefix+"-"+self._author_name_text.value.replace(" ","")
@@ -81,7 +86,7 @@ class AnswerRegistry(VBox):
         if not(os.path.exists(self._answers_filename)):
             with self._output:
                 print(f"File {self._answers_filename} not found. Creating new file.")
-            answers = {key: widget.answer for key, widget in self._answer_widgets.items()}
+            answers = {key: widget.answer_value for key, widget in self._answer_widgets.items()}
             json.dump(answers, open(self._answers_filename, "w"))
         else:
             answers = json.load(open(self._answers_filename, "r"))
@@ -89,7 +94,7 @@ class AnswerRegistry(VBox):
                 if not answer_key in self._answer_widgets:
                     with self._output:
                         raise ValueError(f"Field ID {answer_key} in the data dump is not registered.")
-                self._answer_widgets[f_id].answer_value = answer_value
+                self._answer_widgets[answer_key].answer_value = answer_value
         with self._output:
             print(f"Success: File {self._answers_filename} loaded.")
 
@@ -101,7 +106,7 @@ class AnswerRegistry(VBox):
                 raise FileNotFoundError(f"No file has been loaded.")
         else:
             answers = json.load(open(self._answers_filename, "r"))
-            answers[answer_key] = self._answer_widgets[answer_key].answer
+            answers[answer_key] = self._answer_widgets[answer_key].answer_value
             json.dump(answers , open(self._answers_filename, "w"))
             with self._answer_widgets[answer_key].save_output:
                 print(f"Success: Answer written to file {self._answers_filename}")

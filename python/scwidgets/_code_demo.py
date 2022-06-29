@@ -4,7 +4,6 @@ import os
 import sys
 import traitlets
 import numpy as np
-import json
 
 import traitlets
 
@@ -259,6 +258,9 @@ class CodeDemo(VBox, Answer):
                     visualizer.before_visualizers_update()
 
         if self._update_visualizers is not None:
+
+            # TODO in CodeDemo change signature to
+            #example2p3_process(parmeters_kwargs, None, []):
             if self._input_parameters_box is None:
                 parameters = []
             else:
@@ -318,6 +320,8 @@ class ParametersBox(VBox):
     value = traitlets.Dict({}, sync=True)
 
     def __init__(self, **kwargs):
+        # TODO make sure that order of the **kwargs is transparent for the user
+        # TODO customization of parameters box 
         # TODO(low) continuous_update does not work atm, check later after the rest has been fixed
         self._controls = {}
         for k, v in kwargs.items():
@@ -382,6 +386,9 @@ class ParametersBox(VBox):
                         style={"description_width": "initial"},
                         layout=Layout(width="50%", min_width="5in"),
                     )
+                #elif: type(v[0]) is Widget:
+                #    # TODO check if widget can be added
+                #    pass
                 else:
                     raise ValueError("Unsupported parameter type")
             else:

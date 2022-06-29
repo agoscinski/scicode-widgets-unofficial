@@ -114,34 +114,18 @@ class TestAnswerRegistry(unittest.TestCase):
         self.answer_registry.register_answer_widget("textarea_key", self.textarea_answer)
         # because we are running the tests not in a jupyter notebook but in a terminal, we have to display the widget differently. We need to display the widget
         # so that clicking on the button actually executes the code we have set it up to execute.
-        self.textarea_answer.save_output._ipython_display_()
+        # redirects to original output
+        #self.textarea_answer.save_output.close()
+        #self.textarea_answer.save_output._ipython_display_()
         display(self.textarea_answer)
         # this time we do not load any file, so we cannot save the answer in the textarea anywhere and an error is raised 
         self.textarea_answer._save_button.click() # <-- raises error make test out of this
+        # does not race error because it is an registered function
+
+        #display(self.textarea_answer.save_output)
+        #self.textarea_answer.save_output._ipython_display_()
+        print(self.textarea_answer.save_output)
     
-    @testbook('./my_notebook.ipynb')
-    def test_get_details(tb):
-        tb.inject(
-            """
-            import mock
-            mock_client = mock.MagicMock()
-            mock_df = pd.DataFrame()
-            mock_df['week'] = range(10)
-            mock_df['count'] = 5
-            p1 = mock.patch.object(bigquery, 'Client', return_value=mock_client)
-            mock_client.query().result().to_dataframe.return_value = mock_df
-            p1.start()
-            """,
-            before=2,
-            run=False
-        )
-        tb.execute()
-        dataframe = tb.get('dataframe')
-        assert dataframe.shape == (10, 2)
-
-        x = tb.get('x')
-        assert x == 7
-
 
     # TODO(Joao) all the tests are also valid for CodeCheck, you can reuse the existing tests using parametrized
     # https://stackoverflow.com/questions/32899/how-do-you-generate-dynamic-parameterized-unit-tests-in-python
