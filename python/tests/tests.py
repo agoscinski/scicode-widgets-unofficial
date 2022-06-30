@@ -1,8 +1,10 @@
 import unittest
 import sys
+import os
+import json
 
 from IPython.display import display
-import ipywidgets
+from IPython.core.interactiveshell import InteractiveShell
 
 from widget_code_input import WidgetCodeInput
 from scwidgets import (CodeDemo, CodeChecker, ParametersBox, PyplotOutput, TextareaAnswer, AnswerRegistry)
@@ -11,6 +13,24 @@ import matplotlib.pyplot as plt
 import matplotlib
 # same backend as in jupyter notebook
 matplotlib.use('module://ipympl.backend_nbagg')
+
+
+class SurpressStdOutput():
+    def __init__(self):
+        pass
+    def __enter__(self):
+        self.stdout = sys.stdout
+        sys.stdout = None
+        pass
+    def __exit__(self, etype, evalue, tb):
+        sys.stdout = self.stdout
+        if etype is None:
+            return True
+        return False
+
+    def clear_output(self):
+        pass
+
 
 # a bunch of test TODO needs organization
 class TestMain(unittest.TestCase):
@@ -82,50 +102,49 @@ class TestAnswerRegistry(unittest.TestCase):
         # @Joao setUp is invoked before each test, so you get clean objects for each test
         self.answer_registry = AnswerRegistry(prefix="test")
         self.textarea_answer = TextareaAnswer() 
+        self.answer_registry._author_name_text.value = "Max Mustermann"
+        self.answer_registry.register_answer_widget("textarea_key", self.textarea_answer)
+        self.answer_registry._output = SurpressStdOutput()
+        InteractiveShell.instance()
+
+    def tearDown(self):
+        # @Joao tearDown is invoked after each test, so you get clean every created file
+        if os.path.exists("test-MaxMustermann.json"):
+            os.remove("test-MaxMustermann.json")
 
     def test_load_answers(self):
-        # TODO(Joao) create new file with AnswerRegistry using the load_button, set _author_name_text to some value then use the .click() function of the load button
-        # then check for one registered widget that the answer key can be found in the the json without having clicked on the save button of the widget
-        self.answer_registry._author_name_text.value = "Max Mustermann"
-        self.answer_registry.register_answer_widget("textarea_key", self.textarea_answer)
+        # Creates a new file with AnswerRegistry using the load_button and checks if file has been created
         self.answer_registry._load_answers_button.click()
-        # the file test-MaxMustermann.json exists now, here a check just to show you, can be deleted
-        import os
-        print(os.listdir("./"))
-        #print(os.path.exists("test-MaxMustermann.json"))
-        # are all keys present 
+        self.assertTrue(os.path.exists("test-MaxMustermann.json"))
 
     def test_answer_correctly_saved(self):
-        # TODO(Joao) so here something similar as in the above text, now check set the value in the textarea_answer to s.th. and check if it is stored after clicking on the save button
-
-        self.answer_registry._author_name_text.value = "Max Mustermann"
-        self.answer_registry.register_answer_widget("textarea_key", self.textarea_answer)
-        self.answer_registry._ipython_display_()
+        # TODO(Joao) so here something similar as in the above text, now set answer_value in the textarea to s.th. and check if it is stored in the json file after clicking on the save button
         #self.textarea_answer.answer_value = ... TODO
-        self.answer_registry._load_answers_button.click()
-
+        self.answer_registry._load_answers_button.click() 
         self.textarea_answer._save_button.click()
-        # load the saved json file and check value of "textarea_key" 
+        # the answer_value should be now stored in the json answers file
+        # @Joao load the saved json file and check value of "textarea_key" 
+        with open("test-MaxMustermann.json", "r") as answers_file:
+            saved_answers_file = json.load(answers_file) # <--- this is a dict
+            # TODO(Joao) check
 
     def test_raise_error(self):
-        # TODO(Joao) This time we want to test if the error is correctly exectuted. For that we have self.assertRaises, read some documentation for it and tr
-        # textarea has no
-        self.answer_registry._author_name_text.value = "Max Mustermann"
-        self.answer_registry.register_answer_widget("textarea_key", self.textarea_answer)
-        # because we are running the tests not in a jupyter notebook but in a terminal, we have to display the widget differently. We need to display the widget
-        # so that clicking on the button actually executes the code we have set it up to execute.
-        # redirects to original output
-        #self.textarea_answer.save_output.close()
-        #self.textarea_answer.save_output._ipython_display_()
-        display(self.textarea_answer)
-        # this time we do not load any file, so we cannot save the answer in the textarea anywhere and an error is raised 
-        self.textarea_answer._save_button.click() # <-- raises error make test out of this
-        # does not race error because it is an registered function
-
-        #display(self.textarea_answer.save_output)
-        #self.textarea_answer.save_output._ipython_display_()
-        print(self.textarea_answer.save_output)
+        # TODO(Joao) This time we want to test if the error is correctly exectuted, when no answers file is loaded, but something is saved.
+        #            If we do not load any file, we cannot save the answer of the textarea anywhere, thus an error is raised for the user
+        #            The test is already written, but try to understand the logic here a bit
+        assertTrue = self.assertTrue
+        # @Joao this is a bit complicated, it is explained here https://github.com/agoscinski/scicode-widgets-unofficial/issues/2
+        #       but its okay if you don't understand all the details
+        class AssertRaiseOutput(SurpressStdOutput):
+            def __exit__(self, etype, evalue, tb):
+                super().__exit__(etype, evalue, tb)
+                nonlocal assertTrue
+                test_condition = etype is FileNotFoundError
+                assertTrue(test_condition) # <--- checks if the correct has been executed
+                return True
+        self.textarea_answer._save_output = AssertRaiseOutput()
+        self.textarea_answer._save_button.click() # <-- @Joao clicking the button calls a saving function which raises the error
     
-
-    # TODO(Joao) all the tests are also valid for CodeCheck, you can reuse the existing tests using parametrized
+    # TODO(Joao) all the tests are also valid for CodeDemo, can you do them for CodeDemo
+    # If you want to not rewrite the whole test logic you can use the package `parametrized`
     # https://stackoverflow.com/questions/32899/how-do-you-generate-dynamic-parameterized-unit-tests-in-python

@@ -1,5 +1,6 @@
 import os 
 import json
+import functools
 
 from ipywidgets import (
     Output,
@@ -61,6 +62,7 @@ class AnswerRegistry(VBox):
 
     def __init__(self, prefix=None):
         self._prefix = prefix
+        self._callbacks = {}
 
         self._load_answers_button = Button(description="Load")
         self._load_answers_button.on_click(self._load_answers)
@@ -87,36 +89,44 @@ class AnswerRegistry(VBox):
             with self._output:
                 print(f"File {self._answers_filename} not found. Creating new file.")
             answers = {key: widget.answer_value for key, widget in self._answer_widgets.items()}
-            json.dump(answers, open(self._answers_filename, "w"))
+            with open(self._answers_filename, "w") as answers_file:
+                json.dump(answers, answers_file)
         else:
-            answers = json.load(open(self._answers_filename, "r"))
-            for answer_key, answer_value in answers.items():
-                if not answer_key in self._answer_widgets:
-                    with self._output:
-                        raise ValueError(f"Field ID {answer_key} in the data dump is not registered.")
-                self._answer_widgets[answer_key].answer_value = answer_value
+            with open(self._answers_filename, "r") as answers_file:
+                answers = json.load(answers_file)
+                for answer_key, answer_value in answers.items():
+                    if not answer_key in self._answer_widgets:
+                        with self._output:
+                            raise ValueError(f"Field ID {answer_key} in the data dump is not registered.")
+                    self._answer_widgets[answer_key].answer_value = answer_value
         with self._output:
             print(f"Success: File {self._answers_filename} loaded.")
 
-    def _save_answer(self, answer_key):
+    def _save_answer(self, change, answer_key=None):
+        if answer_key is None:
+            raise ValueError("Cannot save answer with None answer_key")
         self._answer_widgets[answer_key].save_output.clear_output()
         if (self._answers_filename is None) or not(os.path.exists(self._answers_filename)):
-            # should be there where save button is actually used
+            # outputs error at the widget where the save button is attached to
             with self._answer_widgets[answer_key].save_output:
                 raise FileNotFoundError(f"No file has been loaded.")
         else:
-            answers = json.load(open(self._answers_filename, "r"))
+            with open(self._answers_filename, "r") as answers_file:
+                answers = json.load(answers_file)
             answers[answer_key] = self._answer_widgets[answer_key].answer_value
-            json.dump(answers , open(self._answers_filename, "w"))
+            with open(self._answers_filename, "w") as answers_file:
+                json.dump(answers , answers_file)
+            # outputs messagec at the widget where the save button is attached to
             with self._answer_widgets[answer_key].save_output:
                 print(f"Success: Answer written to file {self._answers_filename}")
+            return True
  
     def register_answer_widget(self, answer_key, widget):
         self._answer_widgets[answer_key] = widget
+
         if isinstance(widget, Answer):
-            def _save_answer_value_for_key(change, answer_key=answer_key):
-                self._save_answer(answer_key)
-            widget.on_save(_save_answer_value_for_key)
+            self._callbacks[answer_key] = functools.partial(self._save_answer, answer_key=answer_key)
+            widget.on_save(self._callbacks[answer_key])
         else:
             raise ValueError(f"Widget {widget} is not of type {Answer.__name__}. Therefore does not support saving the of answer.")
 
