@@ -7,7 +7,7 @@ from IPython.display import display
 from IPython.core.interactiveshell import InteractiveShell
 
 from widget_code_input import WidgetCodeInput
-from scwidgets import (CodeDemo, CodeChecker, ParametersBox, PyplotOutput, TextareaAnswer, AnswerRegistry)
+from scwidgets import (CodeDemo, CodeChecker, ParametersBox, PyplotOutput, ClearedOutput, TextareaAnswer, AnswerRegistry)
 
 import matplotlib.pyplot as plt
 import matplotlib
@@ -15,22 +15,32 @@ import matplotlib
 matplotlib.use('module://ipympl.backend_nbagg')
 
 
+
+# TODO fix typo in class name
 class SurpressStdOutput():
-    def __init__(self):
-        pass
+    def __init__(self, redirect_to_null=False, suppress_error=False):
+        self.suppress_error = suppress_error
+        self.redirect_to_null = redirect_to_null
+        self._file = None
+
     def __enter__(self):
         self.stdout = sys.stdout
-        sys.stdout = None
-        pass
+        if self.redirect_to_null:
+            self._file = open('/dev/null', 'w')
+            sys.stdout = self._file
+        else:
+            sys.stdout = None
+
     def __exit__(self, etype, evalue, tb):
         sys.stdout = self.stdout
-        if etype is None:
+        if self.redirect_to_null:
+            self._file.close()
+        if etype is None or self.suppress_error:
             return True
         return False
 
     def clear_output(self):
         pass
-
 
 # a bunch of test TODO needs organization
 class TestMain(unittest.TestCase):
@@ -40,51 +50,50 @@ class TestMain(unittest.TestCase):
                 function_parameters="a",
                 docstring="",
                 function_body="return a+1")
-        self.failing_code_input = WidgetCodeInput(
+        self.failing_name_error_code_input = WidgetCodeInput(
                 function_name="test",
                 function_parameters="a",
                 docstring="",
                 function_body="return b")
+        self.failing_syntax_error_code_input = WidgetCodeInput(
+                function_name="test",
+                function_parameters="a",
+                docstring="",
+                function_body="5a")
         self.test_code_checker = CodeChecker({(1,):(2,), (2,):(3,)})
 
-        self.test_code_demo = CodeDemo(code_input=self.working_code_input,
-                    input_parameters_box=None,
-                    visualizers=None,
-                    update_on_input_parameter_change=False,
-                    update_visualizers=None,
-                    code_checker=self.test_code_checker,
-                    separate_check_and_update_buttons=False)
+        self.parbox = ParametersBox(a = (1., -4, 4, 1, 'a'))
 
-        self.parbox = ParametersBox(a11 = (1., -4, 4, 0.1, r'$a_{11} / Å$'),
-                      a12 = (0., -4, 4, 0.1, r'$a_{12} / Å$'),
-                      a21 = (0., -4, 4, 0.1, r'$a_{21} / Å$'),
-                      a22 = (2., -4, 4, 0.1, r'$a_{22} / Å$'))
+        self.test_code_demo = CodeDemo(code_input=self.working_code_input,
+                    input_parameters_box=self.parbox,
+                    visualizers=[ClearedOutput()],
+                    update_on_input_parameter_change=False,
+                    update_visualizers=lambda a, wci, visualizer: a,
+                    code_checker=self.test_code_checker,
+                    separate_check_and_update_buttons=True)
+
+        InteractiveShell.instance()
 
     def test_nb_checks(self):
         assert self.test_code_checker.nb_checks == 2
 
     def test_code_checker_check(self):
         self.test_code_checker.check(self.working_code_input)
-        self.assertRaises(NameError, self.test_code_checker.check, self.failing_code_input)
+        self.assertRaises(NameError, self.test_code_checker.check, self.failing_name_error_code_input)
 
-    def test_code_demo_display(self):
+    def test_code_demo_callback_on_display(self):
         # tests if on_displayed callback works properly
-        foo_was_run = False
-        def foo(a, code_input):
-            nonlocal foo_was_run
-            foo_was_run = True
-        self.test_code_demo._update_visualizers = foo
-        # simulates display(self.test_code_demo)
-        #self.test_code_demo.update()
-        orig_out = sys.stdout
-        try: 
-            sys.stdout = None
-            self.test_code_demo._ipython_display_()
-            sys.stdout = orig_out
-        except e:
-            sys.stdout = orig_out
-            raise e
-        self.assertTrue(foo_was_run)
+
+        update_was_run = False
+        def update_function(a, code_input, visualizer):
+            nonlocal update_was_run
+            update_was_run = True
+
+        self.test_code_demo.update_visualizers = update_function
+        # display does not work for None stdout so we direct to null
+        with SurpressStdOutput(redirect_to_null=True):
+            display(self.test_code_demo)
+        self.assertTrue(update_was_run)
 
     def test_code_demo_check(self):
         self.test_code_demo.check()
@@ -96,6 +105,38 @@ class TestMain(unittest.TestCase):
     #    # TODO(alex) gives a lot of deprecation warnings fix this before uncommenting test
     #    test_fig = plt.figure()
     #    PyplotOutput(test_fig)
+
+    def test_code_demo_check_button_enabled_after_erroneous_check(self):
+        # Checks if the check button gets enabled again after a check has failed 
+
+        # to verify that we actually have run the check function within the code demo
+        failing_check_has_run = False
+        def failing_check_function(a,b):
+            nonlocal failing_check_has_run
+            failing_check_has_run = True
+            raise NameError
+            return False
+        self.test_code_demo.code_checker.equality_function = failing_check_function
+        self.test_code_demo._error_output = SurpressStdOutput(suppress_error=True)
+        self.test_code_demo.check_button.click()
+        self.assertTrue(failing_check_has_run)
+        self.assertFalse(self.test_code_demo.check_button.disabled)
+
+    def test_code_demo_update_button_enabled_after_erroneous_update(self):
+        # Checks if the update button gets enabled again after an update has failed 
+
+        # to verify that we actually have run the update function within the code demo
+        update_was_run = False
+        def erroneous_update_function(a, wci, visualizers):
+            nonlocal update_was_run
+            update_was_run = True
+            raise NameError
+        # TODO setter does not work why?
+        self.test_code_demo.update_visualizers = erroneous_update_function
+        self.test_code_demo._error_output = SurpressStdOutput(suppress_error=True)
+        self.test_code_demo.update_button.click()
+        self.assertTrue(update_was_run)
+        self.assertFalse(self.test_code_demo.update_button.disabled)
 
 class TestAnswerRegistry(unittest.TestCase):
     def setUp(self):

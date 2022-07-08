@@ -188,7 +188,10 @@ class CodeDemo(VBox, Answer):
         self._error_output.clear_output()
         nb_failed_checks = 0
         with self._error_output:
-            nb_failed_checks = self._code_checker.check(self._code_input)
+            try:
+                nb_failed_checks = self._code_checker.check(self._code_input)
+            finally:
+                self.check_button.disabled = False
 
         self._validation_text.value = "&nbsp;" * 4
         if nb_failed_checks:
@@ -251,36 +254,42 @@ class CodeDemo(VBox, Answer):
     def update(self, change=None):
         if self.has_update_button():
             self.update_button.disabled = True
+        try:
+            if self._visualizers is not None:
+                for visualizer in self._visualizers:
+                    if hasattr(visualizer, "before_visualizers_update"):
+                        visualizer.before_visualizers_update()
 
-        if self._visualizers is not None:
-            for visualizer in self._visualizers:
-                if hasattr(visualizer, "before_visualizers_update"):
-                    visualizer.before_visualizers_update()
+            if self._update_visualizers is not None:
 
-        if self._update_visualizers is not None:
+                # TODO in CodeDemo change signature to
+                #example2p3_process(parmeters_kwargs, None, []):
 
-            # TODO in CodeDemo change signature to
-            #example2p3_process(parmeters_kwargs, None, []):
-            if self._input_parameters_box is None:
-                parameters = []
-            else:
-                parameters = self._input_parameters_box.parameters
+                if self._input_parameters_box is None:
+                    parameters = []
+                else:
+                    parameters = self._input_parameters_box.parameters
 
-            if self._code_input is not None and self._visualizers is not None:
-                self._update_visualizers(
-                    *parameters, self._code_input, self._visualizers
-                )
-            elif self._code_input is not None and self._visualizers is None:
-                self._update_visualizers(*parameters, self._code_input)
-            elif self._code_input is None and self._visualizers is not None:
-                self._update_visualizers(*parameters, self._visualizers)
-            else:
-                self._update_visualizers(*parameters)
+                if self._code_input is not None and self._visualizers is not None:
+                    self._update_visualizers(
+                        *parameters, self._code_input, self._visualizers
+                    )
+                elif self._code_input is not None and self._visualizers is None:
+                    self._update_visualizers(*parameters, self._code_input)
+                elif self._code_input is None and self._visualizers is not None:
+                    self._update_visualizers(*parameters, self._visualizers)
+                else:
+                    self._update_visualizers(*parameters)
 
-        if self._visualizers is not None:
-            for visualizer_output in self._visualizers:
-                if hasattr(visualizer, "after_visualizers_update"):
-                    visualizer.after_visualizers_update()
+            if self._visualizers is not None:
+                for visualizer_output in self._visualizers:
+                    if hasattr(visualizer, "after_visualizers_update"):
+                        visualizer.after_visualizers_update()
+        except Exception as e:
+            with self._error_output:
+                raise e
+        finally:
+            self.update_button.disabled = False
 
         if self.has_update_button():
             self.update_button.disabled = False
@@ -304,6 +313,11 @@ class CodeDemo(VBox, Answer):
     @property
     def update_visualizers(self):
         return self._update_visualizers
+
+    @update_visualizers.setter
+    def update_visualizers(self, new_update_visualizers):
+        # is not part of widget, can be setted
+        self._update_visualizers = new_update_visualizers
 
     @property
     def code_checker(self):
@@ -487,9 +501,17 @@ class CodeChecker:
     def __init__(self, reference_code_parameters, equality_function=None):
         self.reference_code_parameters = reference_code_parameters
 
-        self.equality_function = equality_function
-        if self.equality_function is None:
-            self.equality_function = np.allclose
+        self._equality_function = equality_function
+        if self._equality_function is None:
+            self._equality_function = np.allclose
+
+    @property
+    def equality_function(self):
+        return self._equality_function
+
+    @equality_function.setter
+    def equality_function(self, new_equality_function):
+        self._equality_function = new_equality_function
 
     @property
     def nb_checks(self):
