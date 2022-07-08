@@ -87,8 +87,9 @@ class CodeDemo(VBox, Answer):
 
         if (update_on_input_parameter_change) and (input_parameters_box is None):
             warnings.warn(
-                "`update_on_input_parameter_change` is True, but `input_parameters_box` is None. `update_on_input_parameter_change` does not affect anything without a `input_parameters_box`"
+                "update_on_input_parameter_change is True, but input_parameters_box is None. update_on_input_parameter_change does not affect anything without a input_parameters_box. Setting update_on_input_parameter_change to False"
             )
+            self._update_on_input_parameter_change = False
         # TODO should this be mentioned to the user?
         # if len(self._visualizers) == 0 and self._update_visualizers is not None:
         #    warnings.warn("self._update_visualizers is given without visualizers.")
