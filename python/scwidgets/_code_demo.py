@@ -98,11 +98,20 @@ class CodeDemo(VBox, Answer):
                 "Non-empty not None `visualizers` are given but without a `update_visualizers` function. The `visualizers` are used by the code demo"
             )
 
-        if self._update_on_input_parameter_change:
+        if (self._update_on_input_parameter_change) and (self._input_parameters_box is not None):
             self._input_parameters_box.observe(self.update, "value")
+        elif self._input_parameters_box is not None:
+            self._input_parameters_box.observe(self._update_out_of_sync, "value")
+
+        if self._code_input is not None:
+            self._code_input.observe(self._check_out_of_sync, "function_body")
+            self._code_input.observe(self._update_out_of_sync, "function_body")
+
 
         self._error_output = Output(layout=Layout(width="100%", height="100%"))
 
+
+        # TODO rename has_check_button -> has check, because this is more a question about functionality
         if self.has_check_button() and self.has_update_button():
             if self._separate_check_and_update_buttons:
                 check_button = Button(description="Check", layout=Layout(width="200px", height="100%"))
@@ -111,7 +120,7 @@ class CodeDemo(VBox, Answer):
                 update_button.on_click(self.update)
                 self._demo_button_box = HBox([check_button, update_button])
             else:
-                check_and_update_button = Button(description="Check & update", layout=Layout(width="250px", height="100%"))
+                check_and_update_button = Button(description="Check & Update", layout=Layout(width="250px", height="100%"))
                 check_and_update_button.on_click(self.check_and_update)
                 self._demo_button_box = HBox([check_and_update_button])
         elif not (self.has_check_button()) and self.has_update_button():
@@ -192,7 +201,8 @@ class CodeDemo(VBox, Answer):
             try:
                 nb_failed_checks = self._code_checker.check(self._code_input)
             finally:
-                self.check_button.disabled = False
+                if self.check_button is not None:
+                    self.check_button.disabled = False
 
         self._validation_text.value = "&nbsp;" * 4
         if nb_failed_checks:
@@ -203,6 +213,8 @@ class CodeDemo(VBox, Answer):
             )
         if self.has_check_button():
             self.check_button.disabled = False
+        self._check_in_sync = True
+        self._refresh_check_button_description()
         return nb_failed_checks
     
     @property
@@ -290,10 +302,36 @@ class CodeDemo(VBox, Answer):
             with self._error_output:
                 raise e
         finally:
-            self.update_button.disabled = False
+            if self.has_update_button():
+                self.update_button.disabled = False
 
         if self.has_update_button():
             self.update_button.disabled = False
+
+        self._update_in_sync = True
+        self._refresh_update_button_description()
+
+    def _update_out_of_sync(self, change):
+        self._update_in_sync = change['old'] == change['new']
+        self._refresh_update_button_description()
+
+    def _check_out_of_sync(self, change):
+        self._check_in_sync = change['old'] == change['new']
+        self._refresh_check_button_description()
+
+    def _refresh_update_button_description(self):
+        if self.update_button is not None:
+            if self._update_in_sync:
+                self.update_button.description = self.update_button.description.replace("Update*", "Update")
+            else:
+                self.update_button.description = self.update_button.description.replace("Update*", "Update").replace("Update", "Update*")
+
+    def _refresh_check_button_description(self):
+        if self.check_button is not None:
+            if self._check_in_sync:
+                self.check_button.description = self.check_button.description.replace("Check*", "Check")
+            else:
+                self.check_button.description = self.check_button.description.replace("Check*", "Check").replace("Check", "Check*")
 
     @property
     def code_input(self):

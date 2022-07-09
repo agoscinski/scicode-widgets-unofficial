@@ -15,6 +15,12 @@ import matplotlib
 matplotlib.use('module://ipympl.backend_nbagg')
 
 
+# TODO(Joao) tests for checking if * is correctly updated
+# cases:
+# - change code input check button description updated?
+# - change code input update button description updated?
+# - change params_box update button description updated?
+# all cases for merged und separated check and update button
 
 # TODO fix typo in class name
 class SurpressStdOutput():
