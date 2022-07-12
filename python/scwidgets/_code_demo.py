@@ -186,11 +186,11 @@ class CodeDemo(VBox, Answer):
         if self._code_checker is None:
             return 0
         self._error_output.clear_output()
-        nb_failed_checks = 0
         with self._error_output:
             try:
                 nb_failed_checks = self._code_checker.check(self._code_input)
             finally:
+                nb_failed_checks = self._code_checker.nb_checks
                 self.check_button.disabled = False
 
         self._validation_text.value = "&nbsp;" * 4

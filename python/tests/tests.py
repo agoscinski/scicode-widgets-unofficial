@@ -101,12 +101,13 @@ class TestMain(unittest.TestCase):
     def test_code_demo_check_click(self):
         self.test_code_demo.check_button.click()
 
+
     #def test_pyplot_output(self):
     #    # TODO(alex) gives a lot of deprecation warnings fix this before uncommenting test
     #    test_fig = plt.figure()
     #    PyplotOutput(test_fig)
 
-    def test_code_demo_check_button_enabled_after_erroneous_check(self):
+    def test_code_demo_check_after_erroneous_check(self):
         # Checks if the check button gets enabled again after a check has failed 
 
         # to verify that we actually have run the check function within the code demo
@@ -120,7 +121,12 @@ class TestMain(unittest.TestCase):
         self.test_code_demo._error_output = SurpressStdOutput(suppress_error=True)
         self.test_code_demo.check_button.click()
         self.assertTrue(failing_check_has_run)
-        self.assertFalse(self.test_code_demo.check_button.disabled)
+        # check if button_enabled
+        self.assertFalse(self.test_code_demo.check_button.disabled, "check button is disabled but it should be enabled")
+        # check if validation text value is correct
+        nb_failed_checks = self.test_code_checker.nb_checks
+        ref_validation_text_value = "&nbsp;" * 4 +  f"   {nb_failed_checks} out of {self.test_code_checker.nb_checks} tests failed."
+        self.assertEqual(self.test_code_demo._validation_text.value, ref_validation_text_value)
 
     def test_code_demo_update_button_enabled_after_erroneous_update(self):
         # Checks if the update button gets enabled again after an update has failed 
