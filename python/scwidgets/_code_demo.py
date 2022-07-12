@@ -32,24 +32,24 @@ class CodeDemo(VBox, Answer):
     """
     Widget to demonstrate code interactively in a variety of ways.
 
-    A code demo is in essence a combination of the widgets: one `code_input` + one `input_parameters_box` + one or more `code_visualizer`. Any widget can also be set None and is then not displayed.
+    A code demo is in essence a combination of the widgets: one `code_input` + one `params_box` + one or more `code_visualizer`. Any widget can also be set None and is then not displayed.
 
 
     Parameters
     ----------
         code_input : WidgetCodeInput, default=None
             An widget supporting the input of code usually for a student to fill in a solution.
-        input_parameters_box : ParametersBox, default=None
-        update_on_input_parameter_change : bool, default=True
-            Determines if the visualizers are instantly updated on a parameter change of `input_parameters_box`. If processing the code is computationally demanding, this parameter should be set to False for a better user experience. The user then has to manually update by a button click.
+        params_box : ParametersBox, default=None
+        update_on_params_change : bool, default=True
+            Determines if the visualizers are instantly updated on a parameter change of `params_box`. If processing the code is computationally demanding, this parameter should be set to False for a better user experience. The user then has to manually update by a button click.
         update_visualizers : function, default=None
             It processes the code `code_input` and to updae the `visualizers`. The `update_visualizers` function is assumed to support the signature
-            def update_visualizers(*input_parameters_box.paramaters, code_input if not None, visualizers if not None)
+            def update_visualizers(*params_box.paramaters, code_input if not None, visualizers if not None)
         visualizers : Iterable of Widgets or Widget, default=None
             Any kind of widget that can be displayed. Optionally the visualizer has a `before_visualizers_update` and/or a `after_visualizers_update` function which allows set up the visualizer before and after the `update_visualizers` function is executed
         code_checker : CodeChecker
             It handles the correctness check of the code in `code_input`.
-        separate_check_and_update_buttons: bool, default=False
+        merge_check_and_update: bool, default=False
             It handles the correctness check of the code in `code_input`.
 
     """
@@ -57,16 +57,16 @@ class CodeDemo(VBox, Answer):
     def __init__(
         self,
         code_input=None,
-        input_parameters_box=None,
-        update_on_input_parameter_change=True,
+        params_box=None,
+        update_on_params_change=True,
         visualizers=None,
         update_visualizers=None,
         code_checker=None,
-        separate_check_and_update_buttons=False,
+        merge_check_and_update=False,
     ):
 
         self._code_input = code_input
-        self._input_parameters_box = input_parameters_box
+        self._params_box = params_box
 
         if visualizers is not None:
             if not (isinstance(visualizers, Iterable)):
@@ -76,20 +76,20 @@ class CodeDemo(VBox, Answer):
         else:
             self._visualizers = []
 
-        self._update_on_input_parameter_change = update_on_input_parameter_change
+        self._update_on_params_change = update_on_params_change
         self._update_visualizers = update_visualizers
         self._code_checker = code_checker
-        self._separate_check_and_update_buttons = separate_check_and_update_buttons
+        self._merge_check_and_update = merge_check_and_update
         
         self._save_button = None
         self._on_save_callback = None
         self._save_output = None
 
-        if (update_on_input_parameter_change) and (input_parameters_box is None):
+        if (update_on_params_change) and (params_box is None):
             warnings.warn(
-                "update_on_input_parameter_change is True, but input_parameters_box is None. update_on_input_parameter_change does not affect anything without a input_parameters_box. Setting update_on_input_parameter_change to False"
+                "update_on_params_change is True, but params_box is None. update_on_params_change does not affect anything without a params_box. Setting update_on_params_change to False"
             )
-            self._update_on_input_parameter_change = False
+            self._update_on_params_change = False
         # TODO should this be mentioned to the user?
         # if len(self._visualizers) == 0 and self._update_visualizers is not None:
         #    warnings.warn("self._update_visualizers is given without visualizers.")
@@ -98,10 +98,10 @@ class CodeDemo(VBox, Answer):
                 "Non-empty not None `visualizers` are given but without a `update_visualizers` function. The `visualizers` are used by the code demo"
             )
 
-        if (self._update_on_input_parameter_change) and (self._input_parameters_box is not None):
-            self._input_parameters_box.observe(self.update, "value")
-        elif self._input_parameters_box is not None:
-            self._input_parameters_box.observe(self._update_out_of_sync, "value")
+        if (self._update_on_params_change) and (self._params_box is not None):
+            self._params_box.observe(self.update, "value")
+        elif self._params_box is not None:
+            self._params_box.observe(self._update_out_of_sync, "value")
 
         if self._code_input is not None:
             self._code_input.observe(self._check_out_of_sync, "function_body")
@@ -113,7 +113,7 @@ class CodeDemo(VBox, Answer):
 
         # TODO rename has_check_button -> has check, because this is more a question about functionality
         if self.has_check_button() and self.has_update_button():
-            if self._separate_check_and_update_buttons:
+            if not(self._merge_check_and_update):
                 check_button = Button(description="Check", layout=Layout(width="200px", height="100%"))
                 check_button.on_click(self.check)
                 update_button = Button(description="Update", layout=Layout(width="200px", height="100%"))
@@ -152,12 +152,14 @@ class CodeDemo(VBox, Answer):
             demo_widgets.append(self._error_output)
         elif not (self.has_check_button()) and self.has_update_button():
             self._code_input_button_panel = self._demo_button_box
+            demo_widgets.append(self._error_output)
             demo_widgets.append(self._code_input_button_panel)
         else:
+            demo_widgets.append(self._error_output)
             self._code_input_button_panel =  HBox([], layout=Layout(align_items="flex-start", width='100%'))
 
-        if input_parameters_box is not None:
-            demo_widgets.append(self._input_parameters_box)
+        if params_box is not None:
+            demo_widgets.append(self._params_box)
 
         demo_widgets.extend(self._visualizers)
 
@@ -172,8 +174,8 @@ class CodeDemo(VBox, Answer):
         # to cover the cases where no code input is used
         without_code_input_demo = (
             (len(self._visualizers) > 0)
-            and (not (self._update_on_input_parameter_change))
-            and (self._input_parameters_box is not None)
+            and (not (self._update_on_params_change))
+            and (self._params_box is not None)
         )
         with_code_input_demo = (
             len(self._visualizers) > 0 and self._code_input is not None
@@ -278,21 +280,24 @@ class CodeDemo(VBox, Answer):
                 # TODO in CodeDemo change signature to
                 #example2p3_process(parmeters_kwargs, None, []):
 
-                if self._input_parameters_box is None:
+                if self._params_box is None:
                     parameters = []
                 else:
-                    parameters = self._input_parameters_box.parameters
+                    parameters = self._params_box.parameters
 
-                if self._code_input is not None and self._visualizers is not None:
-                    self._update_visualizers(
-                        *parameters, self._code_input, self._visualizers
-                    )
-                elif self._code_input is not None and self._visualizers is None:
-                    self._update_visualizers(*parameters, self._code_input)
-                elif self._code_input is None and self._visualizers is not None:
-                    self._update_visualizers(*parameters, self._visualizers)
-                else:
-                    self._update_visualizers(*parameters)
+                self._update_visualizers(
+                    parameters, self._code_input, self._visualizers
+                )
+                #if self._code_input is not None and self._visualizers is not None:
+                #    self._update_visualizers(
+                #        *parameters, self._code_input, self._visualizers
+                #    )
+                #elif self._code_input is not None and self._visualizers is None:
+                #    self._update_visualizers(*parameters, self._code_input)
+                #elif self._code_input is None and self._visualizers is not None:
+                #    self._update_visualizers(*parameters, self._visualizers)
+                #else:
+                #    self._update_visualizers(*parameters)
 
             if self._visualizers is not None:
                 for visualizer_output in self._visualizers:
@@ -338,12 +343,12 @@ class CodeDemo(VBox, Answer):
         return self._code_input
 
     @property
-    def input_parameters_box(self):
-        return self._input_parameters_box
+    def params_box(self):
+        return self._params_box
 
     @property
-    def update_on_input_parameter_change(self):
-        return self._update_on_input_parameter_change
+    def update_on_params_change(self):
+        return self._update_on_params_change
 
     @property
     def visualizers(self):
@@ -363,8 +368,8 @@ class CodeDemo(VBox, Answer):
         return self._code_checker
 
     @property
-    def separate_check_and_update_buttons(self):
-        return self._separate_check_and_update_buttons
+    def merge_check_and_update(self):
+        return self._merge_check_and_update
 
 
 
