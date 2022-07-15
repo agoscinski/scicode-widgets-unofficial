@@ -11,8 +11,12 @@ from scwidgets import (CodeDemo, CodeChecker, ParametersBox, PyplotOutput, Clear
 
 import matplotlib.pyplot as plt
 import matplotlib
+
+from parameterized import parameterized_class
 # same backend as in jupyter notebook
 matplotlib.use('module://ipympl.backend_nbagg')
+
+
 
 
 
@@ -143,14 +147,33 @@ class TestMain(unittest.TestCase):
         self.test_code_demo.update_button.click()
         self.assertTrue(update_was_run)
         self.assertFalse(self.test_code_demo.update_button.disabled)
-
+#Wraps TestAnswerRegistry with two parameters available as self.name and self.tested_answer, 
+# to add new parameterized test cases it suffices to add to the list tuples 
+#(name : String, tested_answer : Answer) 
+@parameterized_class(("name","tested_answer"), [
+   ("TextareaAnswer",TextareaAnswer(), ),
+   ("CodeDemo",CodeDemo(
+            code_input=  WidgetCodeInput(
+                function_name="name", 
+                function_parameters="",
+                docstring="""""",
+                function_body="""body"""),
+            input_parameters_box=None,
+            visualizers=None,
+            update_visualizers=None,
+            code_checker=None,
+            separate_check_and_update_buttons=False,
+            update_on_input_parameter_change=False
+), )
+])
 class TestAnswerRegistry(unittest.TestCase):
     def setUp(self):
+        import copy
         # @Joao setUp is invoked before each test, so you get clean objects for each test
         self.answer_registry = AnswerRegistry(prefix="test")
-        self.textarea_answer = TextareaAnswer() 
-        self.answer_registry._author_name_text.value = "Max Mustermann"
-        self.answer_registry.register_answer_widget("textarea_key", self.textarea_answer)
+        self.answer = copy.copy(self.tested_answer)
+        self.answer_registry._author_name_text.value = "MaxMustermann"
+        self.answer_registry.register_answer_widget("textarea_key", self.answer)
         self.answer_registry._output = SurpressStdOutput()
         InteractiveShell.instance()
 
@@ -165,18 +188,18 @@ class TestAnswerRegistry(unittest.TestCase):
         self.assertTrue(os.path.exists("test-MaxMustermann.json"))
 
     def test_answer_correctly_saved(self):
-        # TODO(Joao) so here something similar as in the above text, now set answer_value in the textarea to s.th. and check if it is stored in the json file after clicking on the save button
-        #self.textarea_answer.answer_value = ... TODO
+        # TODO DONE (Joao) so here something similar as in the above text, now set answer_value in the textarea to s.th. and check if it is stored in the json file after clicking on the save button
+        self.answer.answer_value = "something"
         self.answer_registry._load_answers_button.click() 
-        self.textarea_answer._save_button.click()
+        self.answer._save_button.click()
         # the answer_value should be now stored in the json answers file
-        # @Joao load the saved json file and check value of "textarea_key" 
         with open("test-MaxMustermann.json", "r") as answers_file:
             saved_answers_file = json.load(answers_file) # <--- this is a dict
-            # TODO(Joao) check
+            self.assertTrue("textarea_key" in saved_answers_file)
+            self.assertEqual(saved_answers_file["textarea_key"],"something")
 
     def test_raise_error(self):
-        # TODO(Joao) This time we want to test if the error is correctly exectuted, when no answers file is loaded, but something is saved.
+        # TODO DONE (Joao) This time we want to test if the error is correctly exectuted, when no answers file is loaded, but something is saved.
         #            If we do not load any file, we cannot save the answer of the textarea anywhere, thus an error is raised for the user
         #            The test is already written, but try to understand the logic here a bit
         assertTrue = self.assertTrue
@@ -189,9 +212,5 @@ class TestAnswerRegistry(unittest.TestCase):
                 test_condition = etype is FileNotFoundError
                 assertTrue(test_condition) # <--- checks if the correct has been executed
                 return True
-        self.textarea_answer._save_output = AssertRaiseOutput()
-        self.textarea_answer._save_button.click() # <-- @Joao clicking the button calls a saving function which raises the error
-    
-    # TODO(Joao) all the tests are also valid for CodeDemo, can you do them for CodeDemo
-    # If you want to not rewrite the whole test logic you can use the package `parametrized`
-    # https://stackoverflow.com/questions/32899/how-do-you-generate-dynamic-parameterized-unit-tests-in-python
+        self.answer._save_output = AssertRaiseOutput()
+        self.answer._save_button.click() # <-- @Joao clicking the button calls a saving function which raises the error
