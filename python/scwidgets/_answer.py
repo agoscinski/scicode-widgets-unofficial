@@ -151,4 +151,4 @@ class TextareaAnswer(VBox, Answer):
             save_widget = self._init_save_widget(callback)
             self.children += (save_widget,)
         else:
-            self._update_save_widget(self, callback)
+            self._update_save_widget(callback)

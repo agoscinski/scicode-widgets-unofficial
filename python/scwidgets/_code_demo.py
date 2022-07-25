@@ -230,7 +230,7 @@ class CodeDemo(VBox, Answer):
             #self._demo_button_box.children += (save_widget,)
             self._code_input_button_panel.children += (save_widget,)
         else:
-            self._update_save_widget(self, callback)
+            self._update_save_widget(callback)
 
 
     @property

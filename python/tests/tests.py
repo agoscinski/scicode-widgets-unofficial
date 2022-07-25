@@ -159,6 +159,17 @@ class TestAnswerRegistry(unittest.TestCase):
         if os.path.exists("test-MaxMustermann.json"):
             os.remove("test-MaxMustermann.json")
 
+    def test_update_save_widgets(self):
+        # checks if a new callback has been created but widget stays the same
+        old_callback = self.answer_registry._callbacks["textarea_key"]
+        self.assertTrue(self.answer_registry._answer_widgets["textarea_key"] == self.textarea_answer)
+
+        self.answer_registry.register_answer_widget("textarea_key", self.textarea_answer)
+
+        self.assertTrue(self.answer_registry._answer_widgets["textarea_key"] == self.textarea_answer)
+        self.assertTrue(self.answer_registry._callbacks["textarea_key"] != old_callback)
+
+
     def test_load_answers(self):
         # Creates a new file with AnswerRegistry using the load_button and checks if file has been created
         self.answer_registry._load_answers_button.click()
