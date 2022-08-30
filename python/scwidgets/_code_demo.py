@@ -230,7 +230,7 @@ class CodeDemo(VBox, Answer):
             #self._demo_button_box.children += (save_widget,)
             self._code_input_button_panel.children += (save_widget,)
         else:
-            self._update_save_widget(self, callback)
+            self._update_save_widget(callback)
 
 
     @property
@@ -290,7 +290,8 @@ class CodeDemo(VBox, Answer):
             with self._error_output:
                 raise e
         finally:
-            self.update_button.disabled = False
+            if self.has_update_button():
+                self.update_button.disabled = False
 
         if self.has_update_button():
             self.update_button.disabled = False
