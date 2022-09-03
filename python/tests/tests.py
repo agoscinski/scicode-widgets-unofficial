@@ -89,6 +89,7 @@ class TestMain(unittest.TestCase):
     #    self.test_code_checker.check(self.working_code_input)
     #    self.assertRaises((NameError, utils.CodeValidationError), self.test_code_checker.check, self.failing_name_error_code_input)
 
+
     def test_code_demo_callback_on_display(self):
         # tests if on_displayed callback works properly
 
@@ -192,7 +193,6 @@ class TestAnswerRegistry(unittest.TestCase):
         self.answer_registry = AnswerRegistry(prefix="test")
         self.answer_registry._author_name_text.value = "MaxMustermann"
         self.answer_registry.register_answer_widget("textarea_key", self.answer)
-        self.answer_registry._output = SupressStdOutput()
         InteractiveShell.instance()
 
     def tearDown(self):
@@ -211,13 +211,13 @@ class TestAnswerRegistry(unittest.TestCase):
 
     def test_load_answers(self):
         # Creates a new file with AnswerRegistry using the load_button and checks if file has been created
-        self.answer_registry._load_answers_button.click()
+        self.answer_registry._create_savefile_button.click()
         self.assertTrue(os.path.exists("test-MaxMustermann.json"))
 
     def test_answer_correctly_saved(self):
         # Checks if a saved answer and it's value are correctly saved in the Answer .json file
+        self.answer_registry._create_savefile_button.click()
         self.answer.answer_value = "saved_answer"
-        self.answer_registry._load_answers_button.click() 
         self.answer._save_button.click()
         # the answer_value should be now stored in the json answers file
         with open("test-MaxMustermann.json", "r") as answers_file:
