@@ -32,6 +32,43 @@ from ._answer import Answer
 from ._utils import CodeDemoStatus
 
 
+with open(os.path.join(os.path.dirname(__file__), 'loading.gif'), 'rb') as file:
+    loading_img_byte = file.read()
+
+
+class LoadingImage(ipywidgets.Image):
+    def __init__(self, **kwargs):
+        if 'code_demo_functionality' not in kwargs:
+            raise ValueError("Could not initiate CodeDemoButton: no code_demo_functionality was given")
+        self._code_demo_functionality = kwargs.pop('code_demo_functionality')
+        self.add_class("scwidget-loading-image")
+        super().__init__(**kwargs)
+
+    # for observe
+    def set_status_unchecked(self, change=None):
+        self.status = CodeDemoStatus.UNCHECKED
+
+    # for observe
+    def set_status_out_of_date(self, change=None):
+        self.status = CodeDemoStatus.OUT_OF_DATE
+
+    @property
+    def status(self):
+        return self._status if hasattr(self, "_status") else None
+
+    @status.setter
+    def status(self, status):
+        if not(isinstance(status, CodeDemoStatus)):
+            raise ValueError(f"Status {status} is not a CodeDemoStatus.")
+        elif status == CodeDemoStatus.UPDATING or status == CodeDemoStatus.CHECKING:
+            self.add_class("scwidget-loading-image--updating")
+        else:
+            self.remove_class("scwidget-loading-image--updating")
+        self._status = status
+
+    def set_status(self, status):
+        self.status = status
+
 class CodeDemoButton(ipywidgets.Button):
     """
         code_demo_functionality : str
@@ -52,8 +89,8 @@ class CodeDemoButton(ipywidgets.Button):
     def status(self, status):
         if self._code_demo_functionality == "update":
             if status == CodeDemoStatus.UPDATING:
-                self.add_class("scwidget-button--out-of-date")
                 self.disabled = True
+                self.remove_class("scwidget-button--out-of-date")
             elif status == CodeDemoStatus.UP_TO_DATE:
                 self.disabled = True
                 self.remove_class("scwidget-button--out-of-date")
@@ -73,6 +110,7 @@ class CodeDemoButton(ipywidgets.Button):
         elif self._code_demo_functionality == "check_update":
             if status == CodeDemoStatus.CHECKING or status == CodeDemoStatus.UPDATING:
                 self.disabled = True
+                self.remove_class("scwidget-button--out-of-date")
             elif status == CodeDemoStatus.CHECKED or status == CodeDemoStatus.UP_TO_DATE:
                 self.disabled = True
                 self.remove_class("scwidget-button--out-of-date")
@@ -122,21 +160,21 @@ class CodeDemoBox(ipywidgets.Box):
             elif status == CodeDemoStatus.OUT_OF_DATE:
                 self.add_class("scwidget-box--out-of-date")
             elif status == CodeDemoStatus.UPDATING:
-                self.add_class("scwidget-button--out-of-date")
+                self.remove_class("scwidget-box--out-of-date")
         if self._code_demo_functionality == "check":
             if status == CodeDemoStatus.CHECKED:
                 self.remove_class("scwidget-box--unchecked")
             elif status == CodeDemoStatus.UNCHECKED:
                 self.add_class("scwidget-box--unchecked")
             elif status == CodeDemoStatus.CHECKING:
-                self.add_class("scwidget-button--out-of-date")
+                self.remove_class("scwidget-box--unchecked")
         if self._code_demo_functionality == "check_update":
             if status == CodeDemoStatus.UP_TO_DATE:
                 self.remove_class("scwidget-box--out-of-date")
             elif status == CodeDemoStatus.OUT_OF_DATE:
                 self.add_class("scwidget-box--out-of-date")
             elif status == CodeDemoStatus.UPDATING:
-                self.add_class("scwidget-button--out-of-date")
+                self.remove_class("scwidget-box--out-of-date")
         elif not(isinstance(status, CodeDemoStatus)):
             raise ValueError(f"Status {status} is not a CodeDemoStatus.")
         self._status = status
@@ -174,7 +212,7 @@ class CodeDemo(VBox, Answer):
         self,
         code_input=None,
         input_parameters_box=None,
-        update_on_input_parameter_change=True,
+        update_on_input_parameter_change=True, # TODO name should also include check functionality
         visualizers=None,
         update_visualizers=None,
         code_checker=None,
@@ -217,31 +255,49 @@ class CodeDemo(VBox, Answer):
 
         if self.has_check_button() and self.has_update_button():
             if self._separate_check_and_update_buttons:
-                check_button = CodeDemoButton(code_demo_functionality="check", description="Check", layout=Layout(width="200px", height="100%"))
-                check_button.on_click(self.check)
-                check_button.set_status(CodeDemoStatus.UNCHECKED)
-                update_button = CodeDemoButton(code_demo_functionality="update", description="Update", layout=Layout(width="200px", height="100%"))
-                update_button.on_click(self.update)
-                update_button.set_status(CodeDemoStatus.OUT_OF_DATE)
-                self._demo_button_box = HBox([check_button, update_button])
+                self._check_button = CodeDemoButton(code_demo_functionality="check", description="Check", layout=Layout(width="200px", height="100%"))
+                self._check_button.on_click(self.check)
+                self._check_button.set_status(CodeDemoStatus.CHECKING)
+                self._update_button = CodeDemoButton(code_demo_functionality="update", description="Update", layout=Layout(width="200px", height="100%"))
+                self._update_button.on_click(self.update)
+                self._update_button.set_status(CodeDemoStatus.UPDATING)
+                self._demo_button_box = HBox([self._check_button, self._update_button])
             else:
                 check_and_update_button = CodeDemoButton(code_demo_functionality="check_update", description="Check & update", layout=Layout(width="250px", height="100%"))
                 check_and_update_button.on_click(self.check_and_update)
-                check_and_update_button.set_status(CodeDemoStatus.UNCHECKED)
-                check_and_update_button.set_status(CodeDemoStatus.OUT_OF_DATE)
+                self._update_button = check_and_update_button
+                self._check_button = check_and_update_button
+                # TODO check if making a merged status is not a better idea
+                check_and_update_button.set_status(CodeDemoStatus.CHECKING)
+                check_and_update_button.set_status(CodeDemoStatus.UPDATING)
                 self._demo_button_box = HBox([check_and_update_button])
         elif not (self.has_check_button()) and self.has_update_button():
-            update_button = CodeDemoButton(code_demo_functionality="update", description="Update", layout=Layout(width="200px", height="100%"))
-            update_button.on_click(self.update)
-            update_button.set_status(CodeDemoStatus.OUT_OF_DATE)
-            self._demo_button_box = HBox([update_button])
+            self._update_button = CodeDemoButton(code_demo_functionality="update", description="Update", layout=Layout(width="200px", height="100%"))
+            self._update_button.on_click(self.update)
+            self._update_button.set_status(CodeDemoStatus.UPDATING)
+            self._demo_button_box = HBox([self._update_button])
         elif self.has_check_button() and not (self.has_update_button()):
-            check_button = CodeDemoButton(code_demo_functionality="check", description="Check", layout=Layout(width="200px", height="100%"))
-            check_button.on_click(self.check)
-            check_button.set_status(CodeDemoStatus.UNCHECKED)
-            self._demo_button_box = HBox([check_button])
+            self._check_button = CodeDemoButton(code_demo_functionality="check", description="Check", layout=Layout(width="200px", height="100%"))
+            self._check_button.on_click(self.check)
+            self._check_button.set_status(CodeDemoStatus.CHECKING)
+            self._demo_button_box = HBox([self._check_button])
         else:
-            self._demo_button_box = None
+            self._demo_button_box = HBox([])
+
+        if self.has_check_functionality() or self.has_update_functionality():
+            global loading_img_byte
+            # TODO this is a quickfix, because I dont understand why the size of the image
+            #      changes when a Button, part of issue #10
+            if (self.update_button is not None) or (self.check_button is not None):
+                width = "5%"
+            else:
+                width = "10%"
+            self._loading_img = LoadingImage(code_demo_functionality='check_update',
+                layout=Layout(width=width, height=width),
+                value=loading_img_byte,
+            format='gif')
+            self._loading_img.set_status(CodeDemoStatus.UPDATING)
+            self._demo_button_box.children += (self._loading_img, )
 
         self._validation_text = HTML(value="", layout=Layout(width="100%", height="100%"))
 
@@ -253,20 +309,21 @@ class CodeDemo(VBox, Answer):
 
         if self.has_check_functionality() and self._code_input is not None:
             self._check_visual_cues['code_input'] = CodeDemoBox(code_demo_functionality="check")
-            self._check_visual_cues['code_input'].set_status(CodeDemoStatus.UNCHECKED)
+            self._check_visual_cues['code_input'].set_status(CodeDemoStatus.CHECKING)
+
         if self.has_update_functionality():
             if self._code_input is not None:
                 self._update_visual_cues['code_input'] = CodeDemoBox(code_demo_functionality="update")
-                self._update_visual_cues['code_input'].set_status(CodeDemoStatus.OUT_OF_DATE)
+                self._update_visual_cues['code_input'].set_status(CodeDemoStatus.UPDATING)
             if self._input_parameters_box is not None:
                 # _controls needs do be 
                 #self._input_parameters_box._controls.values():
                 for control_id, _ in self._input_parameters_box.controls.items():
                     self._update_visual_cues[f'parameter_box_{control_id}'] = CodeDemoBox(code_demo_functionality="update")
-                    self._update_visual_cues[f'parameter_box_{control_id}'].set_status(CodeDemoStatus.OUT_OF_DATE)
+                    self._update_visual_cues[f'parameter_box_{control_id}'].set_status(CodeDemoStatus.UPDATING)
             if len(self._visualizers) > 0:
                 self._update_visual_cues['visualizers'] = CodeDemoBox(code_demo_functionality="update")
-                self._update_visual_cues['visualizers'].set_status(CodeDemoStatus.OUT_OF_DATE)
+                self._update_visual_cues['visualizers'].set_status(CodeDemoStatus.UPDATING)
         ### create visual cues END
 
         demo_widgets = []
@@ -302,16 +359,13 @@ class CodeDemo(VBox, Answer):
                                     layout=Layout(align_items="flex-start", width='100%',
                                         margin='0 0 20px 0')
                                 )
-            demo_widgets.append(self._code_input_button_panel
-            )
-            demo_widgets.append(self._error_output)
         elif (self.check_button is None) and (self.update_button is not None):
             self._code_input_button_panel = HBox([self._demo_button_box],
                                     layout=Layout(align_items="flex-start", width='100%',
                                         margin='0 0 20px 0'))
-            demo_widgets.append(self._code_input_button_panel)
         else:
-            self._code_input_button_panel =  HBox([], layout=Layout(align_items="flex-start", width='100%'))
+            self._code_input_button_panel =  HBox([self._demo_button_box], layout=Layout(align_items="flex-start", width='100%'))
+        demo_widgets.append(self._code_input_button_panel)
 
 
         if self._input_parameters_box is not None:
@@ -325,14 +379,15 @@ class CodeDemo(VBox, Answer):
                     for visualizer in self._visualizers:
                         control.observe(
                                 visualizer.set_status_out_of_date, "value")
-                    if self._code_input is not None:
-                        control.observe(
-                            self._update_visual_cues['code_input'].set_status_out_of_date, "value")
                     if self.update_button is not None:
                         control.observe(
                                 self.update_button.set_status_out_of_date, "value")
                     if self._update_on_input_parameter_change:
-                        control.observe(self.update, "value")
+                        if self.has_check_functionality():
+                            control.observe(self.check_and_update, "value")
+                        else:
+                            control.observe(self.update, "value")
+
                 new_children = [
                         HBox([self._update_visual_cues[f'parameter_box_{control_id}'], control])
                     for control_id, control in self._input_parameters_box.controls.items()]
@@ -345,7 +400,8 @@ class CodeDemo(VBox, Answer):
             if self.has_update_functionality():
                 demo_widgets.append(
                         HBox([self._update_visual_cues['visualizers'],
-                        VBox(self._visualizers, layout=Layout(width='100%'))])
+                        VBox(self._visualizers, layout=Layout(width='100%'))],
+                        layout=Layout(width='100%'))
                     )
             else:
                 demo_widgets.append(HBox([VBox(self._visualizers)]))
@@ -355,7 +411,12 @@ class CodeDemo(VBox, Answer):
         # needed for chemiscope, chemiscope does not acknowledge updates of settings
         # until the widget has been displayed
         # TODO why this function does not work "self.on_displayed(self, self.update)"  but this one?
-        self._display_callbacks.register_callback(self.update)
+        if self.has_update_functionality() and self.has_check_functionality():
+            self._display_callbacks.register_callback(self.check_and_update)
+        elif self.has_update_functionality():
+            self._display_callbacks.register_callback(self.update)
+        elif self.has_check_functionality():
+            self._display_callbacks.register_callback(self.check)
 
     def has_update_button(self):
         # used to determine if update button has to be initialized
@@ -448,22 +509,11 @@ class CodeDemo(VBox, Answer):
 
     @property
     def update_button(self):
-        # check and update button can be the same
-        if self.has_update_button():
-            if len(self._demo_button_box.children) > 1:
-                return self._demo_button_box.children[1]
-            else:
-                return self._demo_button_box.children[0]
-        else:
-            return None
+        return self._update_button if self.has_update_button() else None
 
     @property
     def check_button(self):
-        # check and update button can be the same
-        if self.has_check_button():
-            return self._demo_button_box.children[0]
-        else:
-            return None
+        return self._check_button if self.has_check_button() else None
 
     def set_update_status(self, status):
         if self.update_button is not None:
@@ -474,6 +524,7 @@ class CodeDemo(VBox, Answer):
             visualizer.set_status(status)
         if self._input_parameters_box is not None:
             self._input_parameters_box.set_status(status)
+        self._loading_img.set_status(status)
 
     def set_check_status(self, status):
         # sets the status of all widgets related for checks
@@ -481,6 +532,7 @@ class CodeDemo(VBox, Answer):
             self.check_button.set_status(status)
         for visual_cue in self._check_visual_cues.values():
             visual_cue.set_status(status)
+        self._loading_img.set_status(status)
 
     def update(self, change=None):
         if self.has_update_functionality():

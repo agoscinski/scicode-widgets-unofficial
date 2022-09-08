@@ -35,7 +35,7 @@ __all__ = [
 ]
 import os
 import IPython
-with open(os.path.join(os.path.dirname(__file__), 'scwidget_style.css')) as f:
-    style_txt = f.read()
+with open(os.path.join(os.path.dirname(__file__), 'scwidget_style.css')) as file:
+    style_txt = file.read()
     style_html = IPython.display.HTML("<style>"+style_txt+"</style>")
     IPython.display.display(style_html)

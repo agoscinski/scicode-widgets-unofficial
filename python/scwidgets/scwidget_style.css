@@ -24,12 +24,16 @@
     border-color: #20b5e9;
     background-color: #20b5e9;
 }
-
 .scwidget-visualizer{
     opacity: 1.0;
-    border : 0px solid;
-    border-color: #ffffff;
 }
 .scwidget-visualizer--out-of-date{
     opacity: 0.4;
+}
+
+.scwidget-loading-image{
+    opacity: 0.0;
+}
+.scwidget-loading-image--updating{
+    opacity: 1.0;
 }
