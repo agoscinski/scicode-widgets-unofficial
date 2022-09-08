@@ -93,7 +93,7 @@ class CodeDemoButton(ipywidgets.Button):
             raise ValueError("Could not initiate CodeDemoButton: no code_demo_functionality was given")
         self._code_demo_functionality = kwargs.pop('code_demo_functionality')
         self.add_class("scwidget-button")
-        super().__init__(**kwargs)5
+        super().__init__(**kwargs)
 
     @property
     def status(self):
