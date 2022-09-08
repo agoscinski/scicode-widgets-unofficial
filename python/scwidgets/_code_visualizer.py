@@ -7,7 +7,8 @@ import IPython.display
 from ._utils import CodeDemoStatus
 
 class CodeVisualizer:
-    """CodeDemo supports this interface to execute code before and after the update of the visualizers. It does not inherit from ABC, because then it would conflict with the inheritence of widgets."""
+    """CodeDemo supports this interface to execute code before and after the update of the visualizers. It does not inherit from ABC, because then it would conflict with the inheritence of widgets.
+    """
     def __init__(self):
         self.add_class("scwidget-visualizer")
 

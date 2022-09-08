@@ -37,6 +37,15 @@ with open(os.path.join(os.path.dirname(__file__), 'loading.gif'), 'rb') as file:
 
 
 class LoadingImage(ipywidgets.Image):
+    """
+    Custom image supporting visual changes depending on status of CodeDemo
+
+    Parameters
+    ----------
+        code_demo_functionality : str, no default
+            Describes to which functionality of the code demo the widget belongs.
+            Supported are: "update", "check" "check_update", no default
+    """
     def __init__(self, **kwargs):
         if 'code_demo_functionality' not in kwargs:
             raise ValueError("Could not initiate CodeDemoButton: no code_demo_functionality was given")
@@ -71,15 +80,20 @@ class LoadingImage(ipywidgets.Image):
 
 class CodeDemoButton(ipywidgets.Button):
     """
-        code_demo_functionality : str
-            can be "update", "check" "check_update", no default
+    Custom button supporting visual changes depending on status of CodeDemo
+
+    Parameters
+    ----------
+        code_demo_functionality : str, no default
+            Describes to which functionality of the code demo the widget belongs.
+            Supported are: "update", "check" "check_update", no default
     """
     def __init__(self, **kwargs):
         if 'code_demo_functionality' not in kwargs:
             raise ValueError("Could not initiate CodeDemoButton: no code_demo_functionality was given")
         self._code_demo_functionality = kwargs.pop('code_demo_functionality')
         self.add_class("scwidget-button")
-        super().__init__(**kwargs)
+        super().__init__(**kwargs)5
 
     @property
     def status(self):
@@ -133,6 +147,15 @@ class CodeDemoButton(ipywidgets.Button):
         self.status = CodeDemoStatus.OUT_OF_DATE
 
 class CodeDemoBox(ipywidgets.Box):
+    """
+    Custom box supporting visual changes depending on status of CodeDemo
+
+    Parameters
+    ----------
+        code_demo_functionality : str, no default
+            Describes to which functionality of the code demo the widget belongs.
+            Supported are: "update", "check" "check_update", no default
+    """
     def __init__(self, **kwargs):
         if 'code_demo_functionality' not in kwargs:
             raise ValueError("Could not initiate CodeDemoButton: no code_demo_functionality was given")
