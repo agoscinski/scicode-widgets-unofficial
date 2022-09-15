@@ -1,5 +1,9 @@
 __version__ = "0.0.0"
 
+from ._utils import (
+    CodeDemoStatus
+)
+
 from ._code_demo import (
     CodeDemo,
     ParametersBox,
@@ -29,3 +33,9 @@ __all__ = [
     "AnswerRegistry"
     "TextareaAnswer",
 ]
+import os
+import IPython
+with open(os.path.join(os.path.dirname(__file__), 'scwidget_style.css')) as file:
+    style_txt = file.read()
+    style_html = IPython.display.HTML("<style>"+style_txt+"</style>")
+    IPython.display.display(style_html)
