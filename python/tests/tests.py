@@ -40,6 +40,9 @@ class SupressStdOutput():
             self._file.close()
         if etype is None or self.suppress_error:
             return True
+        # TODO(important) double check here with
+        #raise etype
+        # it seems that error is still surpressed for some reasons
         return False
 
     def clear_output(self):

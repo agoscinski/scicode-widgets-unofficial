@@ -37,3 +37,6 @@
 .scwidget-loading-image--updating{
     opacity: 1.0;
 }
+.scwidget-loading-image--checking{
+    opacity: 1.0;
+}
