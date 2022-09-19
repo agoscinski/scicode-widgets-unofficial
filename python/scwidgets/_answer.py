@@ -15,6 +15,7 @@ from ipywidgets import (
 )
 
 
+
 class Answer:
     """An interface for a widget which contains an answer for a question that can be saved to a file by the widget."""
     def __init__(self):
@@ -132,36 +133,48 @@ class AnswerRegistry(VBox):
             self._disable_savebox()
             self.children = [self._savebox, self._reload_button, self._output]
             with self._output:
-                print(f"File '{self._answers_filename}' loaded successfully.")
+                print(f"\033[92m File '{self._answers_filename}' loaded successfully.")
     
     def _create_savefile(self, change=""):
         """
         creates a new registry when _new_savefile_button is clicked
         """
-        if not self._is_name_empty() \
-               and not self._is_name_used():
-            
-            if (self._prefix is None) or (self._prefix == ""):
-                self._answers_filename = self._filename_text.value.replace(" ","") + ".json"
-            else:
-                self._answers_filename = self._prefix+"-"+self._filename_text.value.replace(" ","") + ".json"
+        #If prefix is defined, it is added to the filename
+        if (self._prefix is None) or (self._prefix == ""):
+            self._answers_filename = self._filename_text.value.replace(" ","_") + ".json"
+        else:
+            self._answers_filename = self._prefix+"-"+self._filename_text.value.replace(" ","_") + ".json"
+
+        #Checks that the name is valid. If invalid, erase the name.
+        if self._is_name_empty():
+            self.clear_output()
+            with self._output: 
+                print(f"\033[91m Your name is empty. Please provide a new one.")
+                self._answers_filename = None
+        elif self._is_name_used():
+            self.clear_output()
+            with self._output: 
+                print(f"\033[91m The name '{self._filename_text.value}' is already used. Please provide a new one.")
+                self._answers_filename = None
+        elif not self._filename_text.value.replace(" ","").isalnum():
+            self.clear_output()
+            with self._output: 
+                print(f"\033[91m The name '{self._filename_text.value}' contains invalid special characters. Please provide a name containing only alphanumerical characters and spaces.")
+                self._answers_filename = None
+
+        else:
             answers = {key: widget.answer_value for key, widget in self._answer_widgets.items()}
             with open(self._answers_filename, "w") as answers_file:
                 json.dump(answers, answers_file)
             self._disable_savebox()
-            self._json_list = [self._answers_filename] + self._json_list
+            self._json_list = list(dict.fromkeys([self._answers_filename] + self._json_list))
             self._dropdown.options = self._json_list
             self.children = [self._savebox, self._reload_button, self._output]
             self.clear_output()
             with self._output:
-                print(f"File {self._answers_filename} successfully created and loaded.")
-        else :
-            self.clear_output()
-            with self._output: 
-                if self._is_name_empty():
-                    print(f"Your name is empty. Please provide a new one.")
-                elif self._is_name_used():
-                    print(f"The name '{self._filename_text.value}' is already used. Please provide a new one.")
+                print(f"\033[92m File {self._answers_filename} successfully created and loaded.")
+
+
 
 
     def _save_answer(self, change, answer_key=None):
@@ -183,13 +196,12 @@ class AnswerRegistry(VBox):
                 print(f"The answer was successfully recorded in '{self._answers_filename}'")
             return True
     def _is_name_used(self):
-        # TODO implemen test
-
-        name_json = self._filename_text.value + ".json"
-        return name_json in self._json_list
+        # TODO implement test
+        #must avoid case insensitive duplicates since Windows and Mac OS are case insensitive
+        return self._answers_filename.lower() in [ x.lower() for x in self._json_list]
 
     def _is_name_empty(self):
-        # TODO implemen test
+        # TODO implement test
 
         name = self._filename_text.value
         return len(name) == name.count(" ")
@@ -211,6 +223,9 @@ class AnswerRegistry(VBox):
         self._filename_text.disabled = False
         self.children = [self._savebox, self._output]
         self.clear_output()
+        # Clears output in each answer when another registry is loaded
+        for key, answer_widget in self._answer_widgets.items() : 
+            answer_widget.save_output.clear_output()
 
                       
     def register_answer_widget(self, answer_key, widget):
@@ -221,6 +236,7 @@ class AnswerRegistry(VBox):
             widget.on_save(self._callbacks[answer_key])
         else:
             raise ValueError(f"Widget {widget} is not of type {Answer.__name__}. Therefore does not support saving the of answer.")
+
 
 
 class TextareaAnswer(VBox, Answer):
