@@ -64,17 +64,17 @@ class AnswerRegistry(VBox):
 
 
     def __init__(self, prefix=None):
-        self._prefix = prefix
+        self._prefix = prefix.lower()
         self._callbacks = {}
         self._current_path = os.getcwd()
-        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json")]
-        self._json_list.append("New Filename:")
+        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json") if os.path.basename(path).startswith(self.prefix+"-")]
+        self._json_list.append("Create new answer file")
         self._answers_filename = None
   
         #Create/load/unload registry widgets
-        self._filename_text  = Text(description='')
+        self._filename_text  = Text(description='Enter your name here:',  style= {'description_width': 'initial'})
         self._load_answers_button = Button(description='Confirm')
-        self._create_savefile_button = Button(description='Save')
+        self._create_savefile_button = Button(description='Confirm')
         self._reload_button = Button(description='Choose other file')
         self._new_savefile = HBox([self._filename_text, self._create_savefile_button])
         self._dropdown = Dropdown(
@@ -141,9 +141,9 @@ class AnswerRegistry(VBox):
         """
         #If prefix is defined, it is added to the filename
         if (self._prefix is None) or (self._prefix == ""):
-            self._answers_filename = self._filename_text.value.replace(" ","_") + ".json"
+            self._answers_filename = self._filename_text.value.lower() + ".json"
         else:
-            self._answers_filename = self._prefix+"-"+self._filename_text.value.replace(" ","_") + ".json"
+            self._answers_filename = self._prefix+"-"+self._filename_text.value.lower() + ".json"
 
         #Checks that the name is valid. If invalid, erase the name.
         if self._is_name_empty():
@@ -154,12 +154,12 @@ class AnswerRegistry(VBox):
         elif self._is_name_used():
             self.clear_output()
             with self._output: 
-                print(f"\033[91m The name '{self._filename_text.value}' is already used. Please provide a new one.")
-                self._answers_filename = None
-        elif not self._filename_text.value.replace(" ","").isalnum():
+                print(f"\033[91m The name '{self._filename_text.value.lower()}' is already used in file '{self._answers_filename}'. Please provide a new one.")
+                self._answers_filename = None    
+        elif self._contains_forbidden_characters()[0]:    
             self.clear_output()
             with self._output: 
-                print(f"\033[91m The name '{self._filename_text.value}' contains invalid special characters. Please provide a name containing only alphanumerical characters and spaces.")
+                print(f"\033[91m The name '{self._filename_text.value}' contains invalid special characters {self._contains_forbidden_characters()[1]}. Please provide another name.")
                 self._answers_filename = None
 
         else:
@@ -198,7 +198,7 @@ class AnswerRegistry(VBox):
     def _is_name_used(self):
         # TODO implement test
         #must avoid case insensitive duplicates since Windows and Mac OS are case insensitive
-        return self._answers_filename.lower() in [ x.lower() for x in self._json_list]
+        return self._answers_filename in [ x for x in self._json_list]
 
     def _is_name_empty(self):
         # TODO implement test
@@ -206,6 +206,17 @@ class AnswerRegistry(VBox):
         name = self._filename_text.value
         return len(name) == name.count(" ")
     
+    def _contains_forbidden_characters(self):
+        # TODO implement test
+        character_list = []
+        forbidden_characters = "./\\"
+        for character in forbidden_characters :
+            if character in self._filename_text.value:
+                character_list += character
+        return (bool(character_list), character_list)
+                
+
+
     def _disable_savebox(self):
         self._create_savefile_button.disabled = True
         self._load_answers_button.disabled = True
@@ -215,8 +226,8 @@ class AnswerRegistry(VBox):
     def _enable_savebox(self, change=""):
         #clean old states
         self._answers_filename = None
-        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json")]
-        self._json_list.append("Create new save file")
+        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json") if os.path.basename(path).startswith(self.prefix+"-")]
+        self._json_list.append("Create new answer file")
         self._create_savefile_button.disabled = False
         self._load_answers_button.disabled = False
         self._dropdown.disabled = False
