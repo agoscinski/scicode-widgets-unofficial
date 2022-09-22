@@ -63,11 +63,11 @@ class AnswerRegistry(VBox):
         return self._prefix
 
 
-    def __init__(self, prefix=None):
-        self._prefix = prefix.lower()
+    def __init__(self, prefix=""):
+        self._prefix = prefix.lower() #prefix must be lowercase in order to ensure files are correctly maintained (only lowercase)
         self._callbacks = {}
         self._current_path = os.getcwd()
-        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json") if os.path.basename(path).startswith(self.prefix+"-")]
+        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json") if (os.path.basename(path).startswith(self.prefix+"-") and self.prefix != "") or (self.prefix == "")]
         self._json_list.append("Create new answer file")
         self._answers_filename = None
   
@@ -226,7 +226,7 @@ class AnswerRegistry(VBox):
     def _enable_savebox(self, change=""):
         #clean old states
         self._answers_filename = None
-        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json") if os.path.basename(path).startswith(self.prefix+"-")]
+        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json") if (os.path.basename(path).startswith(self.prefix+"-") and self.prefix != "") or (self.prefix == "")]
         self._json_list.append("Create new answer file")
         self._create_savefile_button.disabled = False
         self._load_answers_button.disabled = False
