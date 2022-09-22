@@ -32,6 +32,8 @@ class CodeVisualizer:
             self.remove_class("scwidget-visualizer--out-of-date")
         elif not(isinstance(status, CodeDemoStatus)):
             raise ValueError(f"Status {status} is not a CodeDemoStatus.")
+        else:
+            raise ValueError(f'CodeDemoStatus {status} is not supported by code visualizer {self.__class__.__name__}.')
         self._status = status
 
     def set_status(self, status):
