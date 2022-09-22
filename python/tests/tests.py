@@ -191,7 +191,7 @@ class TestMain(unittest.TestCase):
 class TestAnswerRegistry(unittest.TestCase):
     def setUp(self):
         self.answer_registry = AnswerRegistry(prefix="test")
-        self.answer_registry._author_name_text.value = "MaxMustermann"
+        self.answer_registry._filename_text.value = "MaxMustermann"
         self.answer_registry.register_answer_widget("textarea_key", self.answer)
         InteractiveShell.instance()
 

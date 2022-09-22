@@ -71,14 +71,14 @@ class AnswerRegistry(VBox):
         self._answers_filename = None
   
         #Create/load/unload registry widgets
-        self._author_name_text  = Text(description='')
+        self._filename_text  = Text(description='')
         self._load_answers_button = Button(description='Confirm')
-        self._create_savefile_button = Button(description='Confirm')
+        self._create_savefile_button = Button(description='Save')
         self._reload_button = Button(description='Choose other file')
-        self._new_savefile = HBox([self._author_name_text, self._create_savefile_button])
+        self._new_savefile = HBox([self._filename_text, self._create_savefile_button])
         self._dropdown = Dropdown(
                             options=self._json_list,
-                            description='Save file:',
+                            description='Choose:',
                             disabled=False,
                         )
         self._savebox = HBox([self._dropdown, self._new_savefile]) if len(self._json_list) == 1 else HBox([self._dropdown, self._load_answers_button])
@@ -117,28 +117,34 @@ class AnswerRegistry(VBox):
         """
         self.clear_output()
         self._answers_filename = self._current_dropdown_value
-
+        error_occured = False
         with open(self._answers_filename, "r") as answers_file:
             answers = json.load(answers_file)
             for answer_key, answer_value in answers.items():
                 if not answer_key in self._answer_widgets:
                     with self._output:
-                        raise ValueError(f"Field ID {answer_key} in the data dump is not registered.")
-                self._answer_widgets[answer_key].answer_value = answer_value
-        self._disable_savebox()
-        self.children = [self._savebox, self._reload_button, self._output]
-        with self._output:
-            print(f"File '{self._answers_filename}' loaded successfully.")
+                        error_occured = True
+                        # TODO improve message and restrict error trace to this ValueError
+                        raise ValueError(f"Your json file contains unexpected Answer with key : {answer_key}.  ")
+                else:
+                    self._answer_widgets[answer_key].answer_value = answer_value
+        if not error_occured:
+            self._disable_savebox()
+            self.children = [self._savebox, self._reload_button, self._output]
+            with self._output:
+                print(f"File '{self._answers_filename}' loaded successfully.")
     
     def _create_savefile(self, change=""):
         """
         creates a new registry when _new_savefile_button is clicked
         """
-        if self._safename(self._author_name_text.value):
+        if not self._is_name_empty() \
+               and not self._is_name_used():
+            
             if (self._prefix is None) or (self._prefix == ""):
-                self._answers_filename = self._author_name_text.value.replace(" ","") + ".json"
+                self._answers_filename = self._filename_text.value.replace(" ","") + ".json"
             else:
-                self._answers_filename = self._prefix+"-"+self._author_name_text.value.replace(" ","") + ".json"
+                self._answers_filename = self._prefix+"-"+self._filename_text.value.replace(" ","") + ".json"
             answers = {key: widget.answer_value for key, widget in self._answer_widgets.items()}
             with open(self._answers_filename, "w") as answers_file:
                 json.dump(answers, answers_file)
@@ -149,10 +155,14 @@ class AnswerRegistry(VBox):
             self.clear_output()
             with self._output:
                 print(f"File {self._answers_filename} successfully created and loaded.")
+        else :
+            self.clear_output()
+            with self._output: 
+                if self._is_name_empty():
+                    print(f"Your name is empty. Please provide a new one.")
+                elif self._is_name_used():
+                    print(f"The name '{self._filename_text.value}' is already used. Please provide a new one.")
 
-        else:
-            with self._output:
-                print(f"Provided name is not alphanumerical. Please, provide name in [A-z0-9]")
 
     def _save_answer(self, change, answer_key=None):
         if answer_key is None:
@@ -172,17 +182,23 @@ class AnswerRegistry(VBox):
             with self._answer_widgets[answer_key].save_output:
                 print(f"The answer was successfully recorded in '{self._answers_filename}'")
             return True
- 
-    def _safename(self,name):
-        #TODO
-        """checks if a string is namespace safe"""
-        return True
+    def _is_name_used(self):
+        # TODO implemen test
+
+        name_json = self._filename_text.value + ".json"
+        return name_json in self._json_list
+
+    def _is_name_empty(self):
+        # TODO implemen test
+
+        name = self._filename_text.value
+        return len(name) == name.count(" ")
     
     def _disable_savebox(self):
         self._create_savefile_button.disabled = True
         self._load_answers_button.disabled = True
         self._dropdown.disabled = True
-        self._author_name_text.disabled = True
+        self._filename_text.disabled = True
     
     def _enable_savebox(self, change=""):
         #clean old states
@@ -192,7 +208,7 @@ class AnswerRegistry(VBox):
         self._create_savefile_button.disabled = False
         self._load_answers_button.disabled = False
         self._dropdown.disabled = False
-        self._author_name_text.disabled = False
+        self._filename_text.disabled = False
         self.children = [self._savebox, self._output]
         self.clear_output()
 
