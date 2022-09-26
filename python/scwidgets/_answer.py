@@ -39,7 +39,7 @@ class Answer:
         raise NotImplementedError("on_save has not been implemented.")
 
     def _init_save_widget(self, callback):
-        self._save_button = Button(description="Save answer") 
+        self._save_button = Button(description="Save answer")
         self._on_save_callback = callback
         self._save_button.on_click(self._on_save_callback)
         return VBox([self._save_button, self._save_output],
@@ -56,33 +56,46 @@ class Answer:
 
 class AnswerRegistry(VBox):
     """
-    A widget to enter the name of the learner, and to save the state of registered widgets to a .json file, and load them back afterwards.    
+    A widget to enter the name of the learner, and to save the state of registered widgets to a .json file, and load them back afterwards.
     """
     @property
     def prefix(self):
         return self._prefix
 
+    def is_valid_filename(self, filename):
+        return ((self.prefix is not None and filename.startswith(self.prefix+"-") \
+                or (self.prefix is None))) \
+                and (filename.endswith("json"))
 
-    def __init__(self, prefix=""):
-        self._prefix = prefix.lower() #prefix must be lowercase in order to ensure files are correctly maintained (only lowercase)
+    @staticmethod
+    def standardize_filename(filename):
+        return filename.lower()
+
+    def __init__(self, prefix=None):
+        self._prefix = prefix
+        #prefix must be lowercase in order to ensure files are correctly maintained (only lowercase)
         self._callbacks = {}
         self._current_path = os.getcwd()
-        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json") if (os.path.basename(path).startswith(self.prefix+"-") and self.prefix != "") or (self.prefix == "")]
+        self._json_list = [filename for filename in
+                map(os.path.basename, glob.glob(self._current_path + "/*.json"))
+                if self.is_valid_filename(filename)]
         self._json_list.append("Create new answer file")
         self._answers_filename = None
-  
+
         #Create/load/unload registry widgets
-        self._filename_text  = Text(description='Enter your name here:',  style= {'description_width': 'initial'})
+        self._student_name_text  = Text(placeholder='Enter your name here',  style= {'description_width': 'initial'})
         self._load_answers_button = Button(description='Confirm')
         self._create_savefile_button = Button(description='Confirm')
         self._reload_button = Button(description='Choose other file')
-        self._new_savefile = HBox([self._filename_text, self._create_savefile_button])
+        self._new_savefile = HBox([self._student_name_text, self._create_savefile_button])
         self._dropdown = Dropdown(
                             options=self._json_list,
                             description='Choose:',
                             disabled=False,
                         )
-        self._savebox = HBox([self._dropdown, self._new_savefile]) if len(self._json_list) == 1 else HBox([self._dropdown, self._load_answers_button])
+        self._savebox = HBox([self._dropdown, self._new_savefile]) \
+                                if len(self._json_list) == 1 \
+                                else HBox([self._dropdown, self._load_answers_button])
 
         self._current_dropdown_value = self._dropdown.value
         self._answer_widgets = {}
@@ -90,16 +103,18 @@ class AnswerRegistry(VBox):
         self._output = Output(layout=Layout(width='100%', height='100%'))
         super(AnswerRegistry, self).__init__(
                 [self._preoutput, self._savebox, self._output])
+
         #Stateful behavior:
         self._load_answers_button.on_click(self._load_answers)
         self._create_savefile_button.on_click(self._create_savefile)
         self._dropdown.observe(self._on_choice,names='value')
         self._reload_button.on_click(self._enable_savebox)
-        
+
         with self._preoutput:
             print("Please choose a save file and confirm before answering questions.")
     def clear_output(self):
         self._output.clear_output()
+
     def _on_choice(self,change=""):
         """
         a callback which observes _dropdown widget and proposes _new_savefile or _load_answers_button widgets depending on _current_dropdown_value
@@ -113,8 +128,8 @@ class AnswerRegistry(VBox):
 
 
     def _load_answers(self, change=""):
-        """ 
-        loads registry when _load_answers_button is clicked 
+        """
+        loads registry when _load_answers_button is clicked
         """
         self.clear_output()
         self._answers_filename = self._current_dropdown_value
@@ -134,35 +149,45 @@ class AnswerRegistry(VBox):
             self.children = [self._savebox, self._reload_button, self._output]
             with self._output:
                 print(f"\033[92m File '{self._answers_filename}' loaded successfully.")
-    
+
+    def _verify_valid_student_name(self):
+        if AnswerRegistry.is_name_empty(self._student_name_text.value):
+            self.clear_output()
+            # TODO we should we classify prints and so we can give them styles
+            with self._output:
+                print(f"\033[91m Your name is empty. Please provide a new one.")
+            return False
+
+        forbidden_characters = AnswerRegistry.extract_forbidden_characters(self._student_name_text.value)
+        if len(forbidden_characters) > 0:
+            self.clear_output()
+            with self._output:
+                print(f"\033[91m The name '{self._student_name_text.value}' contains invalid special characters {forbidden_characters}. Please provide another name.")
+            return False
+
+        return True
+
     def _create_savefile(self, change=""):
         """
         creates a new registry when _new_savefile_button is clicked
         """
-        #If prefix is defined, it is added to the filename
-        if (self._prefix is None) or (self._prefix == ""):
-            self._answers_filename = self._filename_text.value.lower() + ".json"
-        else:
-            self._answers_filename = self._prefix+"-"+self._filename_text.value.lower() + ".json"
+        # Checks that the name is valid. If invalid, erase the name.
 
-        #Checks that the name is valid. If invalid, erase the name.
-        if self._is_name_empty():
-            self.clear_output()
-            with self._output: 
-                print(f"\033[91m Your name is empty. Please provide a new one.")
-                self._answers_filename = None
-        elif self._is_name_used():
-            self.clear_output()
-            with self._output: 
-                print(f"\033[91m The name '{self._filename_text.value.lower()}' is already used in file '{self._answers_filename}'. Please provide a new one.")
-                self._answers_filename = None    
-        elif self._contains_forbidden_characters()[0]:    
-            self.clear_output()
-            with self._output: 
-                print(f"\033[91m The name '{self._filename_text.value}' contains invalid special characters {self._contains_forbidden_characters()[1]}. Please provide another name.")
-                self._answers_filename = None
+        if not(self._verify_valid_student_name()):
+            return
 
+        # if prefix is defined, it is added to the filename
+        answers_filename = ""
+        if (self._prefix is not None):
+            answers_filename += self.prefix + "-"
+        answers_filename += AnswerRegistry.standardize_filename(self._student_name_text.value) + ".json"
+
+        if os.path.exists(answers_filename):
+            self.clear_output()
+            with self._output:
+                print(f"\033[91m The name '{self._student_name_text.value.lower()}' is already used in file '{self._answers_filename}'. Please provide a new one.")
         else:
+            self._answers_filename = answers_filename
             answers = {key: widget.answer_value for key, widget in self._answer_widgets.items()}
             with open(self._answers_filename, "w") as answers_file:
                 json.dump(answers, answers_file)
@@ -173,9 +198,6 @@ class AnswerRegistry(VBox):
             self.clear_output()
             with self._output:
                 print(f"\033[92m File {self._answers_filename} successfully created and loaded.")
-
-
-
 
     def _save_answer(self, change, answer_key=None):
         if answer_key is None:
@@ -195,50 +217,50 @@ class AnswerRegistry(VBox):
             with self._answer_widgets[answer_key].save_output:
                 print(f"The answer was successfully recorded in '{self._answers_filename}'")
             return True
-    def _is_name_used(self):
-        # TODO implement test
-        #must avoid case insensitive duplicates since Windows and Mac OS are case insensitive
-        return self._answers_filename in [ x for x in self._json_list]
 
-    def _is_name_empty(self):
+    @staticmethod
+    def is_name_empty(name):
         # TODO implement test
-
-        name = self._filename_text.value
         return len(name) == name.count(" ")
-    
-    def _contains_forbidden_characters(self):
+
+    @staticmethod
+    def extract_forbidden_characters(name):
         # TODO implement test
         character_list = []
         forbidden_characters = "./\\"
-        for character in forbidden_characters :
-            if character in self._filename_text.value:
+        for character in forbidden_characters:
+            if character in name:
                 character_list += character
-        return (bool(character_list), character_list)
-                
-
+        return character_list
 
     def _disable_savebox(self):
         self._create_savefile_button.disabled = True
         self._load_answers_button.disabled = True
         self._dropdown.disabled = True
-        self._filename_text.disabled = True
-    
+        self._student_name_text.disabled = True
+
     def _enable_savebox(self, change=""):
-        #clean old states
+        # clean old states
         self._answers_filename = None
-        self._json_list = [os.path.basename(path) for path in glob.glob(self._current_path + "/*.json") if (os.path.basename(path).startswith(self.prefix+"-") and self.prefix != "") or (self.prefix == "")]
+        #self._json_list = [os.path.basename(path)
+        #        for path in glob.glob(self._current_path + "/*.json")
+        #            if (os.path.basename(path).startswith(self.prefix+"-")
+        #                and self.prefix != "") or (self.prefix == "")]
+        self._json_list = [filename for filename in
+                map(os.path.basename, glob.glob(self._current_path + "/*.json"))
+                if self.is_valid_filename(filename)]
         self._json_list.append("Create new answer file")
         self._create_savefile_button.disabled = False
         self._load_answers_button.disabled = False
         self._dropdown.disabled = False
-        self._filename_text.disabled = False
+        self._student_name_text.disabled = False
         self.children = [self._savebox, self._output]
         self.clear_output()
         # Clears output in each answer when another registry is loaded
         for key, answer_widget in self._answer_widgets.items() : 
             answer_widget.save_output.clear_output()
 
-                      
+ 
     def register_answer_widget(self, answer_key, widget):
         self._answer_widgets[answer_key] = widget
 
