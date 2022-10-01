@@ -4,7 +4,7 @@ import unittest
 import sys
 import os
 import json
-
+import io 
 from IPython.display import display
 from IPython.core.interactiveshell import InteractiveShell
 
@@ -173,31 +173,33 @@ class TestMain(unittest.TestCase):
         self.assertTrue(self.test_code_demo.update_button.status == CodeDemoStatus.UP_TO_DATE)
 
 @parameterized_class(("name","answer"), [
-   ("TextareaAnswer",TextareaAnswer(), ),
-   ("CodeDemo",CodeDemo(
-            code_input=  WidgetCodeInput(
-                function_name="name", 
-                function_parameters="",
-                docstring="""""",
-                function_body="""body"""),
-            input_parameters_box=None,
-            visualizers=None,
-            update_visualizers=None,
-            code_checker=None,
-            separate_check_and_update_buttons=False,
-            update_on_input_parameter_change=False
-), )
-])
+   ("TextareaAnswer",TextareaAnswer(), )  ])
+#    ,   ("CodeDemo",CodeDemo(
+#             code_input=  WidgetCodeInput(
+#                 function_name="name", 
+#                 function_parameters="",
+#                 docstring="""""",
+#                 function_body="""body"""),
+#             input_parameters_box=None,
+#             visualizers=None,
+#             update_visualizers=None,
+#             code_checker=None,
+#             separate_check_and_update_buttons=False,
+#             update_on_input_parameter_change=False
+# ), )
+# ])
 class TestAnswerRegistry(unittest.TestCase):
     def setUp(self):
         self.answer_registry = AnswerRegistry(prefix="test")
-        self.answer_registry._filename_text.value = "MaxMustermann"
+        self.answer_registry._student_name_text.value = "MaxMustermann"
+        self.answer_registry._create_savefile_button.click()
         self.answer_registry.register_answer_widget("textarea_key", self.answer)
         InteractiveShell.instance()
 
     def tearDown(self):
-        if os.path.exists("test-MaxMustermann.json"):
-            os.remove("test-MaxMustermann.json")
+        if os.path.exists("test-maxmustermann.json"):
+            os.remove("test-maxmustermann.json")
+        self.answer_registry._reload_button.click()
 
     def test_update_save_widgets(self):
         # checks if a new callback has been created but widget stays the same
@@ -208,15 +210,27 @@ class TestAnswerRegistry(unittest.TestCase):
 
         self.assertTrue(self.answer_registry._answer_widgets["textarea_key"] == self.answer)
         self.assertTrue(self.answer_registry._callbacks["textarea_key"] != old_callback)
-
-    def test_load_answers(self):
-        # Creates a new file with AnswerRegistry using the load_button and checks if file has been created
+    def test_empty_name(self):
+        # checks if creation of a save file with empty name is prevented.
+        self.answer_registry._reload_button.click()
+        self.answer_registry._student_name_text.value = ""
         self.answer_registry._create_savefile_button.click()
+        self.assertFalse(os.path.exists(self.answer_registry.prefix +"-.json"))
+    def test_forbidden_character(self):
+        # checks if creation of a save file with forbidden character is prevented.
+        self.answer_registry._reload_button.click()
+        forbidden_characters = "./\\"
+        for character in forbidden_characters:
+            self.answer_registry._student_name_text.value = character
+            self.answer_registry._create_savefile_button.click()
+            self.assertFalse(os.path.exists(self.answer_registry.prefix +"-"+character+".json"))
+    def test_load_answers(self):
+        self.id().split('.')[-1]
+        # Creates a new file with AnswerRegistry using the load_button and checks if file has been created
         self.assertTrue(os.path.exists("test-MaxMustermann.json"))
 
     def test_answer_correctly_saved(self):
         # Checks if a saved answer and it's value are correctly saved in the Answer .json file
-        self.answer_registry._create_savefile_button.click()
         self.answer.answer_value = "saved_answer"
         self.answer._save_button.click()
         # the answer_value should be now stored in the json answers file
@@ -226,6 +240,7 @@ class TestAnswerRegistry(unittest.TestCase):
             self.assertEqual(saved_answers_file["textarea_key"],"saved_answer")
 
     def test_raise_error(self):
+        self.id().split('.')[-1]
         # Checks if errors are correctly shown as Outputs in the notebook.
         assertTrue = self.assertTrue
         class AssertRaiseOutput(SupressStdOutput):

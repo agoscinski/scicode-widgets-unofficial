@@ -220,12 +220,10 @@ class AnswerRegistry(VBox):
 
     @staticmethod
     def is_name_empty(name):
-        # TODO implement test
         return len(name) == name.count(" ")
 
     @staticmethod
     def extract_forbidden_characters(name):
-        # TODO implement test
         character_list = []
         forbidden_characters = "./\\"
         for character in forbidden_characters:
