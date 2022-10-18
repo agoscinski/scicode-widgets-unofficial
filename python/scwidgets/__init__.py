@@ -7,7 +7,8 @@ from ._utils import (
 from ._code_demo import (
     CodeDemo,
     ParametersBox,
-    CodeChecker
+    CodeCheckerRegistry,
+    GLOBAL_TRAITS
 )
 from ._code_visualizer import (
     CodeVisualizer,

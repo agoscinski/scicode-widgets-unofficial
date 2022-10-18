@@ -1,0 +1,707 @@
+{
+  "example2p1_code_demo": {
+    "arg": {
+      "checks": {
+        "arg": [
+          {
+            "arg": {
+              "check_id": {
+                "arg": 0,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    0,
+                    1
+                  ],
+                  "a2": [
+                    1,
+                    0
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            6.283185307179586,
+                            -0.0
+                          ],
+                          [
+                            6.283185307179586,
+                            0.0
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          },
+          {
+            "arg": {
+              "check_id": {
+                "arg": 1,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    1,
+                    1
+                  ],
+                  "a2": [
+                    1,
+                    -1
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            3.141592653589793,
+                            -3.141592653589793
+                          ],
+                          [
+                            6.283185307179586,
+                            -6.283185307179586
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          },
+          {
+            "arg": {
+              "check_id": {
+                "arg": 2,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    0,
+                    2
+                  ],
+                  "a2": [
+                    2,
+                    1
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            3.141592653589793,
+                            -0.0
+                          ],
+                          [
+                            12.566370614359172,
+                            6.283185307179586
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          }
+        ],
+        "module": "builtins",
+        "type": "list",
+        "len": 3
+      }
+    },
+    "module": "scwidgets._utils",
+    "type": "Exercise"
+  },
+  "example2p5_code_demo": {
+    "arg": {
+      "checks": {
+        "arg": [
+          {
+            "arg": {
+              "check_id": {
+                "arg": 0,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    0,
+                    1
+                  ],
+                  "a2": [
+                    1,
+                    0
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            0.0,
+                            6.283185307179586
+                          ],
+                          [
+                            6.283185307179586,
+                            -0.0
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          },
+          {
+            "arg": {
+              "check_id": {
+                "arg": 1,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    1,
+                    1
+                  ],
+                  "a2": [
+                    1,
+                    -1
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            3.141592653589793,
+                            3.141592653589793
+                          ],
+                          [
+                            3.141592653589793,
+                            -3.141592653589793
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          },
+          {
+            "arg": {
+              "check_id": {
+                "arg": 2,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    0,
+                    2
+                  ],
+                  "a2": [
+                    2,
+                    1
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            -1.5707963267948966,
+                            3.141592653589793
+                          ],
+                          [
+                            3.141592653589793,
+                            -0.0
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          }
+        ],
+        "module": "builtins",
+        "type": "list",
+        "len": 3
+      }
+    },
+    "module": "scwidgets._utils",
+    "type": "Exercise"
+  },
+  "example2p6_code_demo": {
+    "arg": {
+      "checks": {
+        "arg": [
+          {
+            "arg": {
+              "check_id": {
+                "arg": 0,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    0,
+                    1
+                  ],
+                  "a2": [
+                    1,
+                    0
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            0.0,
+                            6.283185307179586
+                          ],
+                          [
+                            6.283185307179586,
+                            -0.0
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          },
+          {
+            "arg": {
+              "check_id": {
+                "arg": 1,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    1,
+                    1
+                  ],
+                  "a2": [
+                    1,
+                    -1
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            3.141592653589793,
+                            3.141592653589793
+                          ],
+                          [
+                            3.141592653589793,
+                            -3.141592653589793
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          },
+          {
+            "arg": {
+              "check_id": {
+                "arg": 2,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "a1": [
+                    0,
+                    2
+                  ],
+                  "a2": [
+                    2,
+                    1
+                  ]
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 2
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": [
+                          [
+                            -1.5707963267948966,
+                            3.141592653589793
+                          ],
+                          [
+                            3.141592653589793,
+                            -0.0
+                          ]
+                        ],
+                        "module": "numpy",
+                        "shape": "(2, 2)",
+                        "dtype": "float64",
+                        "type": "ndarray"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          }
+        ],
+        "module": "builtins",
+        "type": "list",
+        "len": 3
+      }
+    },
+    "module": "scwidgets._utils",
+    "type": "Exercise"
+  }
+}

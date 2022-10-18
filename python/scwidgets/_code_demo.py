@@ -2,6 +2,9 @@ import warnings
 
 import os
 import sys
+import json
+import functools
+
 import traitlets
 import numpy as np
 
@@ -29,12 +32,17 @@ from ipywidgets import (
 )
 
 from ._answer import Answer
-from ._utils import CodeDemoStatus
+from ._utils import (CodeDemoStatus, ConfigurableOutput, DefaultCheckJSONEncoder, DefaultCheckJSONDecoder)
+from ._utils import (Exercise, Check, CheckableOutput, MetaValue, JSON_ENCODER, JSON_DECODER)
 
 
 with open(os.path.join(os.path.dirname(__file__), 'loading.gif'), 'rb') as file:
     loading_img_byte = file.read()
 
+class GlobalTraits(traitlets.HasTraits):
+    teacher_mode = traitlets.Bool(False)
+
+GLOBAL_TRAITS = GlobalTraits()
 
 class LoadingImage(ipywidgets.Image):
     """
@@ -294,6 +302,8 @@ class CodeDemo(VBox, Answer):
         self._save_button = None
         self._on_save_callback = None
         self._save_output = None
+        #self._output = ConfigurableOutput(layout=Layout(width="100%", height="100%"))
+        self._output = Output(layout=Layout(width="100%", height="100%"))
 
         if (self._update_on_input_parameter_change) and (self._input_parameters_box is None):
             warnings.warn(
@@ -307,7 +317,6 @@ class CodeDemo(VBox, Answer):
             raise ValueError(
                 "Non-empty not None `visualizers` are given but without a `update_visualizers` function. The `visualizers` are used by the code demo"
             )
-        self._error_output = Output(layout=Layout(width="100%", height="100%"))
 
         ### create check and update button BEGIN
         if self.has_check_button() and self.has_update_button():
@@ -381,15 +390,8 @@ class CodeDemo(VBox, Answer):
                 layout=Layout(width=width, height=width),
                 value=loading_img_byte,
             format='gif')
-            if self.has_check_functionality():
-                self._loading_img.set_status(CodeDemoStatus.CHECKING)
-            if self.has_update_functionality():
-                self._loading_img.set_status(CodeDemoStatus.UPDATING)
             self._demo_button_box.children += (self._loading_img, )
 
-        self._validation_text = HTML(value="", layout=Layout(width="100%", height="100%"))
-
-        self._error_output = Output(layout=Layout(width="100%", height="100%"))
 
         ### create visual cues BEGIN
         self._update_visual_cues = {}
@@ -478,20 +480,36 @@ class CodeDemo(VBox, Answer):
                                     layout=Layout(margin='0 0 20px 0')
                                     ))
 
-        if self.has_check_button():
-            self._code_input_button_panel = HBox(
-                                    [self._demo_button_box,
-                                     self._validation_text],
-                                    layout=Layout(align_items="flex-start", width='100%',
-                                        margin='0 0 20px 0')
-                                )
-        elif (self.check_button is None) and (self.update_button is not None):
-            self._code_input_button_panel = HBox([self._demo_button_box],
-                                    layout=Layout(align_items="flex-start", width='100%',
-                                        margin='0 0 20px 0'))
-        else:
-            self._code_input_button_panel =  HBox([self._demo_button_box], layout=Layout(align_items="flex-start", width='100%'))
+        # TODO remove validation_text and redirect to self.output
+        self._code_input_button_panel_left = HBox([],
+                                layout=Layout(object_position="left",
+                                    align_items='center',
+                                    width='100%',
+                                    justify_content='flex-start'))
+        self._code_input_button_panel_left.children += (self._demo_button_box,)
+
+        self._save_button_box = HBox([])
+        # TODO make check functionality button
+        self._create_check_button = Button(description="Create Check",
+                        layout=Layout(width="200px", height="100%"))
+        GLOBAL_TRAITS.observe(self.switch_mode, "teacher_mode")
+        self._create_check_button_box = HBox([])
+        if GLOBAL_TRAITS.teacher_mode and self.has_check_functionality():
+            self._create_check_button_box.children = (self._create_check_button, )
+
+        self._code_input_button_panel_right = HBox([
+            self._save_button_box,
+            self._create_check_button_box],
+            layout=Layout(object_position="right",
+                width='100%',
+                justify_content='flex-end'))
+
+        self._code_input_button_panel = HBox([
+            self._code_input_button_panel_left,
+            self._code_input_button_panel_right],
+                layout=Layout(margin='0 0 20px 0'))
         demo_widgets.append(self._code_input_button_panel)
+        demo_widgets.append(self.output)
 
         if len(self._visualizers) > 0:
             if self.has_update_functionality():
@@ -508,12 +526,30 @@ class CodeDemo(VBox, Answer):
         # needed for chemiscope, chemiscope does not acknowledge updates of settings
         # until the widget has been displayed
         # TODO why this function does not work "self.on_displayed(self, self.update)"  but this one?
-        if self.has_update_functionality() and self.has_check_functionality():
-            self._display_callbacks.register_callback(self.check_and_update)
-        elif self.has_update_functionality():
-            self._display_callbacks.register_callback(self.update)
-        elif self.has_check_functionality():
-            self._display_callbacks.register_callback(self.check)
+        # Checker file might be not initialized on display, prevent display callback
+        # to prevent checker errors
+        if GLOBAL_TRAITS.teacher_mode and self.has_check_functionality():
+            if self.has_update_functionality():
+                if self.update_button is not None:
+                    self.update_button.disabled = False
+                self.set_status_out_of_date()
+            if self.has_check_functionality():
+                if self.check_button is not None:
+                    self.check_button.disabled = False
+                self.set_status_unchecked()
+        else:
+            # TODO double check if needed and if not remove
+            #if self.has_check_functionality():
+            #    self._loading_img.set_status(CodeDemoStatus.CHECKING)
+            #if self.has_update_functionality():
+            #    self._loading_img.set_status(CodeDemoStatus.UPDATING)
+            if self.has_update_functionality() and self.has_check_functionality():
+                self._display_callbacks.register_callback(self.check_and_update)
+            elif self.has_update_functionality():
+                self._display_callbacks.register_callback(self.update)
+            elif self.has_check_functionality():
+                self._display_callbacks.register_callback(self.check)
+
 
     def has_update_button(self):
         # used to determine if update button has to be initialized
@@ -543,7 +579,7 @@ class CodeDemo(VBox, Answer):
         return self.has_check_button()
 
     def has_check_button(self):
-        return (self._code_checker is not None) and (self._code_checker.nb_checks > 0)
+        return self._code_checker is not None
 
     def check_and_update(self, change=None):
         self.check(change)
@@ -551,31 +587,96 @@ class CodeDemo(VBox, Answer):
 
     def check(self, change=None):
         """
-        Returns int number of failed checks
+        Returns if checks failed
         """
         if self.has_check_functionality():
             self.set_check_status(CodeDemoStatus.CHECKING)
         if self._code_checker is None:
             return 0
-        self._error_output.clear_output()
-        self._validation_text.value = ""
-        with self._error_output:
-            try:
-                nb_failed_checks = self._code_checker.check(self._code_input)
-            except:
-                nb_failed_checks = self._code_checker.nb_checks
-            finally:
-                self.set_check_status(CodeDemoStatus.CHECKED)
-        self._validation_text.value = "&nbsp;" * 4
-        if nb_failed_checks:
-            self._validation_text.value += f"<span style='color:red'> {nb_failed_checks} out of {self._code_checker.nb_checks} tests failed.</style>"
-        else:
-            self._validation_text.value += (
-                f"<span style='color:green'> All tests passed!</style>"
-            )
-        if self.has_check_functionality() and self._separate_check_and_update_buttons:
+        self.output.clear_output()
+        # TODO remove _validation_text
+        # TODO mv logic to CheckRegistry
+        try:
+            checks_succesful = self._code_checker.do_checks(self)
+        except Exception as e:
+            with self.code_checker_output:
+                raise e
+            checks_succesful = False
+        #with self.output:
+        #    try:
+        #        nb_failed_checks = self._code_checker.do_checks(self)
+        #    except:
+        #        nb_failed_checks = self._code_checker.nb_checks(self)
+        #    finally:
+        #        self.set_check_status(CodeDemoStatus.CHECKED)
+        #if nb_failed_checks:
+        #    with self.output:
+        #        print(f"{nb_failed_checks} out of {self._code_checker.nb_checks(self)} tests failed.")
+        #else:
+        #    with self.output:
+        #        print("All tests passed!")
+        if self.has_check_functionality():
+            #and (
+            #    self._separate_check_and_update_buttons or not(self.has_update_functionality())):
             self.set_check_status(CodeDemoStatus.CHECKED)
-        return nb_failed_checks
+        return not(checks_succesful)
+
+    @property
+    def create_check_button(self):
+        return self._create_check_button
+
+    def switch_mode(self, change=None):
+        if GLOBAL_TRAITS.teacher_mode and self.has_check_functionality():
+            self._create_check_button_box.children = (self._create_check_button, )
+        else:
+            self._create_check_button_box.children = ()
+    # TODO use different functions run_code for checks where prints within student function
+    #      are ignored and otherwise
+    def run_code(self, *args, **kwargs):
+        # TODO remove function within function
+        # For checking we ignore
+        if 'suppress_stdout' in kwargs.keys():
+            suppress_stdout = kwargs.pop('suppress_stdout')
+        else:
+            suppress_stdout = True
+        try:
+            #if suppress_stdout:
+            #    orig_stdout = sys.stdout
+            #print(args, kwargs)
+            with ConfigurableOutput(suppress_std_out=False, suppress_std_err=False):
+                out = self._code_input.get_function_object()(*args, **kwargs)
+            #if suppress_stdout:
+            #    sys.stdout = orig_stdout
+        except Exception as e:
+            # TODO hide trace before student code execution, not trivial
+            #if suppress_stdout:
+            #    sys.stdout = orig_stdout
+            # because some errors in code widgets do not print the
+            # traceback correctly, we print the last step manually
+            tb = sys.exc_info()[2]
+            while not (tb.tb_next is None):
+                tb = tb.tb_next
+            if tb.tb_frame.f_code.co_name == self._code_input.function_name:
+                # index = line-1
+                line_number = tb.tb_lineno - 1
+                code = (
+                    self._code_input.function_name
+                    + '"""\n'
+                    + self._code_input.docstring
+                    + '"""\n'
+                    + self._code_input.function_body
+                ).splitlines()
+                error = f"<widget_self._code_input.widget_self._code_input in {self._code_input.function_name}({self._code_input.function_parameters})\n"
+                for i in range(
+                    max(0, line_number - 2), min(len(code), line_number + 3)
+                ):
+                    if i == line_number:
+                        error += f"----> {i} {code[i]}\n"
+                    else:
+                        error += f"      {i} {code[i]}\n"
+                e.args = (str(e.args[0]) + "\n\n" + error,)
+            raise e
+        return out
 
     @property
     def save_button(self):
@@ -589,18 +690,30 @@ class CodeDemo(VBox, Answer):
     def answer_value(self, new_answer_value):
         self.code_input.function_body = new_answer_value
 
+    @property
+    def output(self):
+        return self._output
+
+    @property
+    def code_checker_output(self):
+        return self.output
+
+    # TODO move most of this to Answer interface and do it like in the CodeCheckerRegistry
     def on_save(self, callback):
         if self._save_button is None and self._on_save_callback is None:
             self._init_save_widget(callback)
-            self._save_output = self._error_output
-            save_widget = HBox([VBox([self._save_button],
-                        layout = Layout(display='flex',
-                        flex_flow='column',
-                        align_items='flex-end',
-                        width='100%'))], layout=Layout(align_items="flex-end", width='100%')
-            )
-            #self._demo_button_box.children += (save_widget,)
-            self._code_input_button_panel.children += (save_widget,)
+            # TODO(small) maybe better to overload save_output
+            self._save_output = self.output
+
+            self._save_button_box.children = (self._save_button,)
+            #save_widget = HBox([VBox([self._save_button],
+            #            layout = Layout(display='flex',
+            #            flex_flow='column',
+            #            align_items='flex-end',
+            #            width='100%'))], layout=Layout(align_items="flex-end", width='100%')
+            #)
+            ##self._demo_button_box.children += (save_widget,)
+            #self._code_input_button_panel.children += (save_widget,)
         else:
             self._update_save_widget(callback)
 
@@ -677,7 +790,7 @@ class CodeDemo(VBox, Answer):
                     if hasattr(visualizer, "after_visualizers_update"):
                         visualizer.after_visualizers_update()
         except Exception as e:
-            with self._error_output:
+            with self.output:
                 raise e
         finally:
             if self.has_update_functionality():
@@ -991,3 +1104,339 @@ class CodeChecker:
             out = student_code_wrapper(*x)
             nb_failed_checks += int(not (self.equality_function(y, out)))
         return nb_failed_checks
+
+class CodeCheckerRegistry(VBox):
+    def __init__(self, filename):
+        self.filename = filename
+
+        self._code_demos = {}
+        self._exercises = {}
+        self._exercise_name_ids = {}
+        self._output = Output(layout=Layout(width="100%", height="100%"))
+        self._button_output = Output(layout=Layout(width="100%", height="100%"))
+        self._create_all_checks_button = Button(description="Create all checks",
+                layout=Layout(width="200px", height="100%"))
+
+        self._create_all_checks_button.on_click(self.create_all_checks)
+        GLOBAL_TRAITS.observe(self._switch_mode, "teacher_mode")
+        self._create_all_checks_button_box = Box([])
+        if GLOBAL_TRAITS.teacher_mode:
+            self._create_all_checks_button_box.children = (self._create_all_checks_button,)
+
+        super().__init__([self._output, self._create_all_checks_button_box, self._button_output])
+
+        if os.path.exists(filename):
+            with self._output:
+                print(f"Check file with filename {filename} found.")
+        else:
+            if not(GLOBAL_TRAITS.teacher_mode):
+                with self._output:
+                    raise FileNotFoundError(f'Check file with filename {filename} not found. No checks can be executed. Please verify that the check file is in your folder and if it is contact the teacher.')
+            else:
+                with self._output:
+                    print(f"Check file with filename {filename} not found. Creating file...")
+                with open(self.filename, 'w') as file:
+                    json.dump({}, file)
+                with self._output:
+                    print("File created.")
+        #TODO filename -> _filename
+        self.filename = filename
+        
+        
+    def nb_checks(self, exercise_id):
+        if isinstance(exercise_id, CodeDemo):
+            exercise_id = self._exercise_name_ids[hash(exercise_id)]
+        return len(self._exercises[exercise_id].checks) if exercise_id in self._exercises else 0
+    
+    # TODO rename to init_exercises?
+    def init_checks(self, exercise_name_id, code_demo):
+        
+        self._exercises[exercise_name_id] = Exercise([])
+        self._exercise_name_ids[hash(code_demo)] = exercise_name_id
+        self._code_demos[exercise_name_id] = code_demo
+        code_demo.create_check_button._click_handlers.callbacks = []
+        code_demo.create_check_button.on_click(functools.partial(self.create_check, exercise_name_id))
+        
+        self._exercises[exercise_name_id] = Exercise([])
+
+        
+    def add_check(self, exercise_id, inputs_args,
+                       assert_function=None,
+                       fingerprint_function=None,
+                       equal_function=None):
+        # TODO this properly
+        #if not(exercise_id in self._exercises.keys()):
+        #    raise KeyError(f"Exercise with name {exercise_id} has not be initialized. Please initialize and rerun cell.")
+            
+        if isinstance(exercise_id, CodeDemo):
+            exercise_id = self._exercise_name_ids[hash(exercise_id)]
+            
+        # then only the standard type, len/shape
+        # if no assert function is given, then the equal check is performend and has generic output
+        # if fingerprint function is given, then output is transformed before it is saved
+        equal_function = np.allclose if equal_function is None else equal_function
+        
+        # single argument
+        if isinstance(inputs_args, dict):
+            inputs_args = [inputs_args]
+            
+        largest_current_check_id = max([0] + [check.check_id
+                                        for check in self._exercises[exercise_id].checks])
+        check_ids = [largest_current_check_id+i  for i, _ in enumerate(inputs_args)]
+        new_checks = [Check(check_ids[i],
+                                 input_args,
+                                 None, # output ref
+                                 assert_function, fingerprint_function,
+                                                   equal_function)
+             for i, input_args in enumerate(inputs_args)]
+        
+        with open(self.filename, 'r') as file:
+            loaded_exercises = json.load(file)
+            
+            if not(exercise_id in loaded_exercises) and GLOBAL_TRAITS.teacher_mode:
+                self._exercises[exercise_id].checks.extend(new_checks)
+                with self._code_demos[exercise_id].code_checker_output:
+                    warnings.warn(
+                        f'Exercise with id {exercise_id} not found in loaded check file. Please create check before checking code.'
+                    )
+            elif not(exercise_id in loaded_exercises):
+                self._exercises[exercise_id].checks.extend(new_checks)
+                with self._code_demos[exercise_id].code_checker_output:
+                    raise KeyError(f'Exercise with id {exercise_id} not found in loaded check file')
+            elif exercise_id in loaded_exercises:
+                #print("type(loaded_exercises)",type(loaded_exercises))
+                decoded_exercise = JSON_DECODER.decode(loaded_exercises[exercise_id])
+                #print(decoded_exercise.checks[0])
+                
+                # TODO for this we need dictionaray format of checks not list
+                #checks_consistent_with_existing_check_file = all([
+                #    new_checks[i].consistent(decoded_exercise.checks[check_id])
+                #        for i, check_id in enumerate(check_ids)])
+                
+                # TODO now it gives inconsistent even when just the order is different
+                checks_consistent_with_existing_check_file = all(
+                    [new_checks[i].consistent(check)
+                             for i, check in enumerate(decoded_exercise.checks)
+                                  if check.check_id in check_ids])
+            
+                if not(checks_consistent_with_existing_check_file) and GLOBAL_TRAITS.teacher_mode:
+                    with self._code_demos[exercise_id].code_checker_output:
+                        #TODO more verbose
+                        warnings.warn(
+                            "The loaded checks from file are not consistent with checks in check file. Please create checks, before checking."
+                        )
+                    self._exercises[exercise_id].checks.extend(new_checks)
+                elif not(checks_consistent_with_existing_check_file):
+                    with self._code_demos[exercise_id].code_checker_output:
+                        #TODO more verbose
+                        raise ValueError(
+                            "The registered checks are not consistent with checks in the check file."
+                        )
+                else:
+                    #decoded_checks = [check for check in decoded_exercise.checks if check.check_id in check_ids]
+                    #self._exercises[exercise_id].checks.extend(decoded_checks)
+                    self._exercises[exercise_id].checks.extend(new_checks)
+            else:
+                self._exercises[exercise_id].checks.extend(new_checks)
+
+    def create_all_checks(self, change=None):
+        for exercise_id in self._code_demos.keys():
+            with self._button_output:
+                print(f"Creating checks for exercise {exercise_id}...")
+            success = self.create_check(exercise_id)
+            with self._button_output:
+                if success:
+                    print(f"Success.")
+                else:
+                    print(f"Failed.")
+
+
+    def create_check(self, exercise_id, change=None):
+        if isinstance(exercise_id, CodeDemo):
+            exercise_id = self._exercise_name_ids[hash(exercise_id)]
+        self._code_demos[exercise_id].code_checker_output.clear_output()
+        with self._code_demos[exercise_id].code_checker_output:
+            print(f"Creating checks for exercise {exercise_id}...")
+
+        success = self.produce_check_reference(exercise_id)
+        if (success):
+            success = self.update_check_file(exercise_id)
+            with self._code_demos[exercise_id].code_checker_output:
+                print("Creating checks finished successfull.")
+            self._code_demos[exercise_id].set_status_unchecked()
+            return True
+        return False
+
+    # TODO clear output if not executed from create check or make private
+    def produce_check_reference(self, exercise_id):
+        # TODO do this properly
+        #if not(exercise_id in self._exercises.keys()):
+        #    raise KeyError(f"Exercise with name {exercise_id} has not be initialized. Please initialize and rerun cell.")
+
+        if isinstance(exercise_id, CodeDemo):
+            exercise_id = self._exercise_name_ids[hash(exercise_id)]
+        with self._code_demos[exercise_id].code_checker_output:
+            print("Producing check references...")
+
+
+        if not(GLOBAL_TRAITS.teacher_mode):
+            with self._code_demos[exercise_id].code_checker_output:
+                raise ValueError("checks can only be produced in teacher mode")
+            return False
+
+        for check in self._exercises[exercise_id].checks:
+            raised_error = False
+            with self._code_demos[exercise_id].code_checker_output:
+                try:
+                    out_value = self._code_demos[exercise_id].run_code(*check.input_args.values())
+                except Exception as e:
+                    raised_error = True
+                    raise e                
+            if raised_error:
+                return False
+            
+            out_fingerprint = None if (check.fingerprint_function is None) \
+                                    else check.fingerprint_function(out_value)
+            #out_value_type = out_value.__class__.__name__
+            #out_value_len = out_value.__len__() if hasattr(out_value, "__len__") else None
+            check._output_ref = CheckableOutput(MetaValue(out_value), out_fingerprint)
+            
+        with self._code_demos[exercise_id].code_checker_output:
+            print("Producing check finished successfull.")            
+        return True
+        
+    # TODO clear output if not executed from create check or make private
+    def update_check_file(self, exercise_id):
+        # TODO what if this fails? Shoud return False
+        if isinstance(exercise_id, CodeDemo):
+            exercise_id = self._exercise_name_ids[hash(exercise_id)]
+            
+        with self._code_demos[exercise_id].code_checker_output:
+            print("Updating check file...")            
+
+        #self._code_demos[exercise_id].code_checker_output.clear_output()        
+
+        #self.loaded_file_as_dict[exercise_id] = json.dumps(
+        #        self.exercises[exercise_id], cls=json_encoder.__class__)
+        with open(self.filename, 'r') as file:
+            loaded_exercises = json.load(file)
+        # TODO I dont know how to make default recursive as encode
+        loaded_exercises[exercise_id] = json.loads(
+                json.dumps(self._exercises[exercise_id], cls=JSON_ENCODER.__class__))
+        with open(self.filename, 'w') as file:
+            json.dump(loaded_exercises, file, indent=2)
+            
+        with self._code_demos[exercise_id].code_checker_output:
+            print("Updating check file finished successfull.")
+        return True
+            
+    def do_checks(self, exercise_id):
+        if isinstance(exercise_id, CodeDemo):
+            exercise_id = self._exercise_name_ids[hash(exercise_id)]
+ 
+        self._code_demos[exercise_id].code_checker_output.clear_output()
+        #print("DO CHECKS")
+        #print(f"exercise_id={exercise_id}")
+        #print("self._exercises[exercise_id]:", self._exercises['example_base'])
+        #print("self._exercises[exercise_id].checks:", self._exercises['example_base'].checks)
+        #print("len(self._exercises[exercise_id].checks):", len(self._exercises['example_base'].checks))
+        # TODO better to just load from file the checks and never keep
+        #      in memory _exercise and the guess work in add_check
+        with open(self.filename, 'r') as file:
+            loaded_exercises = json.load(file)
+        if not(exercise_id in loaded_exercises.keys()):
+            if GLOBAL_TRAITS.teacher_mode:
+                with self._code_demos[exercise_id].code_checker_output:
+                    raise ValueError(f"Exercise {exercise_id} has no checks." \
+                                     " You probably forgot to create checks before checking.")
+                return False
+            else:
+                with self._code_demos[exercise_id].code_checker_output:
+                    raise ValueError(f"Exercise {exercise_id} has no checks." \
+                                     " Your check file seems faulty. Ask a teacher.")
+                return False
+
+        decoded_exercise = JSON_DECODER.decode(loaded_exercises[exercise_id])
+
+        checks_successful = True
+        for check in decoded_exercise.checks:
+            try:
+                out_widget_student = self._code_demos[exercise_id].run_code(*check.input_args.values())
+            except Exception as e:
+                with self._code_demos[exercise_id].code_checker_output:
+                    raise e
+                return False
+
+            out_student = out_widget_student if (check.fingerprint_function is None) \
+                                        else check.fingerprint_function(out_widget_student)
+            if (check.output_ref is None):# and not(GLOBAL_TRAITS.teacher_mode):
+                # TODO think if this makes sense to be a warning in T-mode
+                with self._code_demos[exercise_id].code_checker_output:
+                    if GLOBAL_TRAITS.teacher_mode:
+                        with self._code_demos[exercise_id].code_checker_output:
+                            raise ValueError(f"A check does not have output reference. check information:\n{check}\n" \
+                                             "\nYou probably forgot to create checks before checking.")
+                        return False
+                    else:
+                        with self._code_demos[exercise_id].code_checker_output:
+                            raise ValueError(f"A check does not have output reference. check information:\n{check}\n" \
+                                             "\nYour check file seems faulty. Ask a teacher.")
+                        return False
+
+                # Because Output continues after error, to prevent repeatable printing we still have to go out
+                # of the function
+                return False
+            #if (check.output_ref is None) and GLOBAL_TRAITS.teacher_mode:
+            #    with self._code_demos[exercise_id].code_checker_output:
+            #        warnings.warn(
+            #            f"check does not have output reference. check={check}"
+            #        )
+            out_widget_teacher = check.output_ref.meta_value
+            out_teacher = check.output_ref.meta_value.value if (check.fingerprint_function is None) \
+                                    else check.output_ref.fingerprint
+            if not(out_widget_student.__class__.__name__ == out_widget_teacher.meta['type']):
+                with self._code_demos[exercise_id].code_checker_output:
+                    print(f"TypeCheck failed: Expected type {out_widget_teacher.meta['type']} but got {out_widget_student.__class__.__name__}")
+                return False
+            elif (out_widget_teacher.meta['shape'] is not None) and \
+                        not(out_widget_student.shape == out_widget_teacher.meta['shape']):
+                with self._code_demos[exercise_id].code_checker_output:
+                    print(f"ShapeCheck failed: Expected shape {out_widget_teacher.meta['shape']} but got {out_widget_student.shape}")
+                return False
+            elif (out_widget_teacher.meta['len'] is not None) and \
+                        not(out_widget_student.__len__() == out_widget_teacher.meta['len']):
+                with self._code_demos[exercise_id].code_checker_output:
+                    print(f"LenCheck failed: Expected len {out_widget_teacher.meta['len']} but got {out_widget_student.__len__()}")
+                return False
+            else:
+                if check.assert_function is not None:
+                    try:
+                        check.assert_function(out_student, out_teacher)
+                    except AssertionError as e:
+                        with self._code_demos[exercise_id].code_checker_output:
+                            print(f"CustomCheck failed: {e}")
+                        checks_successful = False
+                if (check.equal_function is not None) and (check.fingerprint_function is None) and \
+                            not(check.equal_function(out_student, out_teacher)):
+                    with self._code_demos[exercise_id].code_checker_output:
+                        print(f"EqualCheck failed: Expected {out_teacher} but got {out_student}")
+                    checks_successful = False
+                elif (check.equal_function is not None) and (check.fingerprint_function is not None)  and \
+                            not(check.equal_function(out_student, out_teacher)):
+                    with self._code_demos[exercise_id].code_checker_output:
+                        if (GLOBAL_TRAITS.teacher_mode):
+                            print(f"HiddenCheck failed. // Debug: Expected {out_teacher} but got {out_student}")
+                        else:
+                            print(f"HiddenCheck failed.")
+                    checks_successful = False
+
+        if checks_successful:
+            with self._code_demos[exercise_id].code_checker_output:
+                print("All checks passed!")
+        return checks_successful
+
+    def _switch_mode(self, change=None):
+        if GLOBAL_TRAITS.teacher_mode:
+            self._create_all_checks_button_box.children = (self._create_all_checks_button, )
+        else:
+            self._create_all_checks_button_box.children = ()
