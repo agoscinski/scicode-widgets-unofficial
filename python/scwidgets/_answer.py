@@ -39,7 +39,7 @@ class Answer:
         raise NotImplementedError("on_save has not been implemented.")
 
     def _init_save_widget(self, callback):
-        self._save_button = Button(description="Save answer")
+        self._save_button = Button(description="Save answer", layout=Layout(width="200px", height="100%"))
         self._on_save_callback = callback
         self._save_button.on_click(self._on_save_callback)
         return VBox([self._save_button, self._save_output],
