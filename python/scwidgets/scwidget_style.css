@@ -10,6 +10,9 @@
 .scwidget-button--unchecked{
     border-color: #20b5e9;
 }
+.scwidget-button--unsaved{
+    border-color: #77216f;
+}
 
 .scwidget-box{
     border : 1px solid;
@@ -24,6 +27,11 @@
     border-color: #20b5e9;
     background-color: #20b5e9;
 }
+.scwidget-box--unsaved{
+    border-color: #77216f;
+    background-color: #77216f;
+}
+
 .scwidget-visualizer{
     opacity: 1.0;
 }

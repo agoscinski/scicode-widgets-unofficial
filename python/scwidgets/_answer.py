@@ -14,10 +14,13 @@ from ipywidgets import (
     Dropdown
 )
 
+from ._state_widgets import (CodeDemoBox, CodeDemoButton, SaveOutput, AnswerStatus)
+
 class Answer:
     """An interface for a widget which contains an answer for a question that can be saved to a file by the widget."""
     def __init__(self):
-        self._save_output = Output()
+        self._save_output = SaveOutput(layout=Layout(width="100%", height="100%"))
+        self._save_output.set_status(AnswerStatus.UNSAVED)
         self._save_button = None
         self._on_save_callback = None
 
@@ -260,9 +263,9 @@ class AnswerRegistry(VBox):
         for key, answer_widget in self._answer_widgets.items() : 
             answer_widget.save_output.clear_output()
 
-    def _save_all(self, change=""):
+    def _save_all(self, change=None):
         for key in self._answer_widgets.keys(): 
-            self._save_answer(answer_key=key, change="")
+            self._save_answer(answer_key=key, change=None)
 
     def register_answer_widget(self, answer_key, widget):
         self._answer_widgets[answer_key] = widget
@@ -278,10 +281,16 @@ class TextareaAnswer(VBox, Answer):
     """ A widget that contains a Textarea whose value can be saved"""
     def __init__(self, *args, **kwargs):
         self._answer_textarea = Textarea(*args, **kwargs)
+        self._visual_cue = CodeDemoBox(code_demo_functionality="save")
+        self._visual_cue.set_answer_status_unsaved()
+        self._answer_textarea.observe(self._visual_cue.set_answer_status_unsaved, "value")
         super(TextareaAnswer, self).__init__(
-                [self._answer_textarea], layout=Layout(align_items="flex-start", width='100%'))
+                [HBox([self._visual_cue, self._answer_textarea],
+                    layout=Layout(width='100%'))],
+                layout=Layout(align_items="flex-start", width='100%'))
 
-    
+        self._answer_textarea.observe(self._save_output.set_answer_status_unsaved, "value")
+ 
     @property
     def answer_value(self):
         return self._answer_textarea.value
@@ -291,8 +300,26 @@ class TextareaAnswer(VBox, Answer):
         self._answer_textarea.value = new_answer_value
 
     def on_save(self, callback):
-        if self._save_button is None and self._on_save_callback is None:
-            save_widget = self._init_save_widget(callback)
+        if self._save_button is None:
+            self._save_button = CodeDemoButton(
+                    code_demo_functionality="save",
+                    description="Save answer",
+                    layout=Layout(width="200px", height="100%"))
+
+            self._save_button.set_answer_status_unsaved()
+            self._save_button.on_click(self._save)
+            self._answer_textarea.observe(self._save_button.set_answer_status_unsaved, "value")
+            save_widget = VBox([self._save_button, self._save_output],
+                    layout=Layout(align_items="flex-start")
+            )
             self.children += (save_widget,)
-        else:
-            self._update_save_widget(callback)
+        self._save_registry_callback = callback
+
+    def _save(self, change=None):
+        save_successfull = self._save_registry_callback()
+        if save_successfull:
+            if self._save_button is not None:
+                self._save_button.set_status(AnswerStatus.SAVED)
+            self._save_output.set_status(AnswerStatus.SAVED)
+            self._visual_cue.set_status(AnswerStatus.SAVED)
+        return save_successfull

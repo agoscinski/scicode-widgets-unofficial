@@ -3,8 +3,9 @@ scicode-widgets: a collection of widgets to simplify teaching using jupyter note
 """
 __version__ = "0.0.0"
 
-from ._utils import (
-    CodeDemoStatus
+from ._state_widgets import (
+    CodeDemoStatus,
+    AnswerStatus
 )
 
 from ._code_demo import (

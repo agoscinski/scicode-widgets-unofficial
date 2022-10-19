@@ -33,9 +33,9 @@ from ipywidgets import (
 )
 
 from ._answer import Answer
-from ._utils import (CodeDemoStatus, ConfigurableOutput, DefaultCheckJSONEncoder, DefaultCheckJSONDecoder)
+from ._utils import (ConfigurableOutput, DefaultCheckJSONEncoder, DefaultCheckJSONDecoder)
 from ._utils import (Exercise, Check, CheckableOutput, MetaValue, JSON_ENCODER, JSON_DECODER)
-
+from ._state_widgets import (CodeDemoBox, CodeDemoButton, LoadingImage, SaveOutput, CodeDemoStatus, AnswerStatus)
 
 with open(os.path.join(os.path.dirname(__file__), 'loading.gif'), 'rb') as file:
     loading_img_byte = file.read()
@@ -44,208 +44,6 @@ class GlobalTraits(traitlets.HasTraits):
     teacher_mode = traitlets.Bool(False)
 
 GLOBAL_TRAITS = GlobalTraits()
-
-class LoadingImage(ipywidgets.Image):
-    """
-    Custom image supporting visual changes depending on status of CodeDemo
-
-    Parameters
-    ----------
-        code_demo_functionality : str, no default
-            Describes to which functionality of the code demo the widget belongs.
-            Supported are: "update", "check" "check_update", no default
-    """
-    def __init__(self, **kwargs):
-        if 'code_demo_functionality' not in kwargs:
-            raise ValueError(f"Could not initiate {self.__class__.__name__}: no code_demo_functionality was given.")
-        self._code_demo_functionality = kwargs.pop('code_demo_functionality')
-        self.add_class("scwidget-loading-image")
-        super().__init__(**kwargs)
-
-    # for observe
-    def set_status_unchecked(self, change=None):
-        self.status = CodeDemoStatus.UNCHECKED
-
-    # for observe
-    def set_status_out_of_date(self, change=None):
-        self.status = CodeDemoStatus.OUT_OF_DATE
-
-    @property
-    def status(self):
-        return self._status if hasattr(self, "_status") else None
-
-    @status.setter
-    def status(self, status):
-        # at the moment updating and checking are treated the same way
-        # so we can use updating style also for checking
-        # this migh however change in the future 
-        if status == CodeDemoStatus.UPDATING:
-            self.add_class("scwidget-loading-image--updating")
-        elif status == CodeDemoStatus.UP_TO_DATE :
-            self.remove_class("scwidget-loading-image--updating")
-        elif status == CodeDemoStatus.OUT_OF_DATE:
-            pass
-        elif status == CodeDemoStatus.CHECKING:
-            self.add_class("scwidget-loading-image--checking")
-        elif status == CodeDemoStatus.CHECKED:
-            self.remove_class("scwidget-loading-image--checking")
-        elif status == CodeDemoStatus.UNCHECKED:
-            pass
-        elif not(isinstance(status, CodeDemoStatus)):
-            raise ValueError(f"Status {status} is not a CodeDemoStatus.")
-        else:
-            raise ValueError(f'CodeDemoStatus {status} is not supported by {self.__class__.__name__}.')
-        self._status = status
-
-    def set_status(self, status):
-        self.status = status
-
-class CodeDemoButton(ipywidgets.Button):
-    """
-    Custom button supporting visual changes depending on status of CodeDemo
-
-    Parameters
-    ----------
-        code_demo_functionality : str, no default
-            Describes to which functionality of the code demo the widget belongs.
-            Supported are: "update", "check" "check_update", no default
-    """
-    def __init__(self, **kwargs):
-        if 'code_demo_functionality' not in kwargs:
-            raise ValueError(f"Could not initiate {self.__class__.__name__}: no code_demo_functionality was given.")
-        self._code_demo_functionality = kwargs.pop('code_demo_functionality')
-        self.add_class("scwidget-button")
-        super().__init__(**kwargs)
-
-    @property
-    def status(self):
-        return self._status if hasattr(self, "_status") else None
-
-    @status.setter
-    def status(self, status):
-        if self._code_demo_functionality == "update":
-            if status == CodeDemoStatus.UPDATING:
-                self.disabled = True
-                self.remove_class("scwidget-button--out-of-date")
-            elif status == CodeDemoStatus.UP_TO_DATE:
-                self.disabled = True
-                self.remove_class("scwidget-button--out-of-date")
-            elif status == CodeDemoStatus.OUT_OF_DATE:
-                self.disabled = False
-                self.add_class("scwidget-button--out-of-date")
-            elif status == CodeDemoStatus.CHECKING or status == CodeDemoStatus.CHECKED or status == CodeDemoStatus.UNCHECKED:
-                pass
-            else:
-                raise ValueError(f'CodeDemoStatus {status} is not supported by update {__self.__class__.__name__}.')
-        elif self._code_demo_functionality == "check":
-            if status == CodeDemoStatus.CHECKING:
-                self.disabled = True
-                self.remove_class("scwidget-button--unchecked")
-            elif status == CodeDemoStatus.CHECKED:
-                self.disabled = True
-                self.remove_class("scwidget-button--unchecked")
-            elif status == CodeDemoStatus.UNCHECKED:
-                self.disabled = False
-                self.add_class("scwidget-button--unchecked")
-            elif status == CodeDemoStatus.UPDATING or status == CodeDemoStatus.UP_TO_DATE or status == CodeDemoStatus.OUT_OF_DATE:
-                pass
-            else:
-                raise ValueError(f'CodeDemoStatus {status} is not supported by check {__self.__class__.__name__}.')
-        elif self._code_demo_functionality == "check_update":
-            if status == CodeDemoStatus.CHECKING or status == CodeDemoStatus.UPDATING:
-                self.disabled = True
-                self.remove_class("scwidget-button--out-of-date")
-            elif status == CodeDemoStatus.CHECKED or status == CodeDemoStatus.UP_TO_DATE:
-                self.disabled = True
-                self.remove_class("scwidget-button--out-of-date")
-            elif status == CodeDemoStatus.UNCHECKED or status == CodeDemoStatus.OUT_OF_DATE:
-                self.disabled = False
-                self.add_class("scwidget-button--out-of-date")
-            else:
-                raise ValueError(f'CodeDemoStatus {status} is not supported by check_update {__self.__class__.__name__}.')
-        elif not(isinstance(status, CodeDemoStatus)):
-            raise ValueError(f"Status {status} is not a CodeDemoStatus.")
-        self._status = status
-
-    def set_status(self, status):
-        self.status = status
-
-    # for observe
-    def set_status_unchecked(self, change=None):
-        self.status = CodeDemoStatus.UNCHECKED
-
-    # for observe
-    def set_status_out_of_date(self, change=None):
-        self.status = CodeDemoStatus.OUT_OF_DATE
-
-class CodeDemoBox(ipywidgets.Box):
-    """
-    Custom box supporting visual changes depending on status of CodeDemo
-
-    Parameters
-    ----------
-        code_demo_functionality : str, no default
-            Describes to which functionality of the code demo the widget belongs.
-            Supported are: "update", "check" "check_update", no default
-    """
-    def __init__(self, **kwargs):
-        if 'code_demo_functionality' not in kwargs:
-            raise ValueError("Could not initiate CodeDemoButton: no code_demo_functionality was given")
-        self._code_demo_functionality = kwargs.pop('code_demo_functionality')
-        self.add_class("scwidget-box")
-        super().__init__(**kwargs)
-
-    # for observe
-    def set_status_unchecked(self, change=None):
-        self.status = CodeDemoStatus.UNCHECKED
-
-    # for observe
-    def set_status_out_of_date(self, change=None):
-        self.status = CodeDemoStatus.OUT_OF_DATE
-
-    @property
-    def status(self):
-        return self._status if hasattr(self, "_status") else None
-
-    @status.setter
-    def status(self, status):
-        if self._code_demo_functionality == "check":
-            if status == CodeDemoStatus.CHECKED:
-                self.remove_class("scwidget-box--unchecked")
-            elif status == CodeDemoStatus.UNCHECKED:
-                self.add_class("scwidget-box--unchecked")
-            elif status == CodeDemoStatus.CHECKING:
-                self.remove_class("scwidget-box--unchecked")
-            elif status == CodeDemoStatus.UPDATING or status == CodeDemoStatus.UP_TO_DATE or status == CodeDemoStatus.OUT_OF_DATE:
-                pass
-            else:
-                raise ValueError(f'CodeDemoStatus {status} is not supported by check {__self.__class__.__name__}.')
-        elif self._code_demo_functionality == "update":
-            if status == CodeDemoStatus.UP_TO_DATE:
-                self.remove_class("scwidget-box--out-of-date")
-            elif status == CodeDemoStatus.OUT_OF_DATE:
-                self.add_class("scwidget-box--out-of-date")
-            elif status == CodeDemoStatus.UPDATING:
-                self.remove_class("scwidget-box--out-of-date")
-            elif status == CodeDemoStatus.CHECKING or status == CodeDemoStatus.CHECKED or status == CodeDemoStatus.UNCHECKED:
-                pass
-            else:
-                raise ValueError(f'CodeDemoStatus {status} is not supported by update {__self.__class__.__name__}.')
-        elif self._code_demo_functionality == "check_update":
-            if status == CodeDemoStatus.UP_TO_DATE:
-                self.remove_class("scwidget-box--out-of-date")
-            elif status == CodeDemoStatus.OUT_OF_DATE:
-                self.add_class("scwidget-box--out-of-date")
-            elif status == CodeDemoStatus.UPDATING:
-                self.remove_class("scwidget-box--out-of-date")
-            else:
-                raise ValueError(f'CodeDemoStatus {status} is not supported by check_update {__self.__class__.__name__}.')
-        elif not(isinstance(status, CodeDemoStatus)):
-            raise ValueError(f"Status {status} is not a CodeDemoStatus.")
-        self._status = status
-
-    def set_status(self, status):
-        self.status = status
 
 class CodeDemo(VBox, Answer):
     """
@@ -302,9 +100,12 @@ class CodeDemo(VBox, Answer):
 
         self._save_button = None
         self._on_save_callback = None
-        self._save_output = None
         #self._output = ConfigurableOutput(layout=Layout(width="100%", height="100%"))
-        self._output = Output(layout=Layout(width="100%", height="100%"))
+        self._output = SaveOutput(layout=Layout(width="100%", height="100%"))
+        self._output.set_status(AnswerStatus.UNSAVED)
+        if self._code_input is not None:
+            self._code_input.observe(
+                    self._output.set_answer_status_unsaved, "function_body")
 
         if (self._update_on_input_parameter_change) and (self._input_parameters_box is None):
             warnings.warn(
@@ -397,6 +198,10 @@ class CodeDemo(VBox, Answer):
         ### create visual cues BEGIN
         self._update_visual_cues = {}
         self._check_visual_cues = {}
+        self._save_visual_cues = {}
+
+        self._save_visual_cues['code_input'] = CodeDemoBox(code_demo_functionality="save")
+        self._save_visual_cues['code_input'].set_status(AnswerStatus.UNSAVED)
 
         if self.has_check_functionality() and self._code_input is not None:
             self._check_visual_cues['code_input'] = CodeDemoBox(code_demo_functionality="check")
@@ -422,6 +227,8 @@ class CodeDemo(VBox, Answer):
             # TODO rm as widget code input changes
             self._code_input.code_theme = 'default'
             code_input_panel = []
+
+
             if self.has_check_functionality():
                 #self._code_input.observe(
                 #        self.set_status_unchecked, "function_body")
@@ -451,6 +258,10 @@ class CodeDemo(VBox, Answer):
                 code_input_panel.append(self._update_visual_cues['code_input'])
 
             code_input_panel.append(VBox([self._code_input], layout=Layout(width='100%', height='auto')))
+            self._code_input.observe(
+                    self._save_visual_cues['code_input'].set_answer_status_unsaved, "function_body")
+            code_input_panel.append(self._save_visual_cues['code_input'])
+
             demo_widgets.append(HBox(code_input_panel, layout=Layout(margin='0 0 20px 0')))
 
         if self._input_parameters_box is not None:
@@ -502,6 +313,7 @@ class CodeDemo(VBox, Answer):
             self._save_button_box,
             self._create_check_button_box],
             layout=Layout(object_position="right",
+                align_items='center',
                 width='100%',
                 justify_content='flex-end'))
 
@@ -689,27 +501,39 @@ class CodeDemo(VBox, Answer):
         return self._output
 
     @property
+    def save_output(self):
+        return self._output
+
+    @property
     def code_checker_output(self):
         return self.output
 
-    # TODO move most of this to Answer interface and do it like in the CodeCheckerRegistry
-    def on_save(self, callback):
-        if self._save_button is None and self._on_save_callback is None:
-            self._init_save_widget(callback)
-            # TODO(small) maybe better to overload save_output
-            self._save_output = self.output
+    def _save(self, change=None):
+        save_successfull = self._save_registry_callback()
+        if save_successfull:
+            if self._save_button is not None:
+                self._save_button.set_status(AnswerStatus.SAVED)
+            self.save_output.set_status(AnswerStatus.SAVED)
+            for visual_cue in self._save_visual_cues.values():
+                visual_cue.set_status(AnswerStatus.SAVED)
+        return save_successfull
 
+
+    def on_save(self, callback):
+        if self._save_button is None:
+            self._save_button = CodeDemoButton(
+                    code_demo_functionality="save",
+                    description="Save answer",
+                    layout=Layout(width="200px", height="100%"))
+            self._save_button.on_click(self._save)
+
+            self._save_button.set_answer_status_unsaved()
+            if self._code_input is not None:
+                self._code_input.observe(
+                        self._save_button.set_answer_status_unsaved, "function_body")
+            # TODO(small) maybe better to overload save_output
             self._save_button_box.children = (self._save_button,)
-            #save_widget = HBox([VBox([self._save_button],
-            #            layout = Layout(display='flex',
-            #            flex_flow='column',
-            #            align_items='flex-end',
-            #            width='100%'))], layout=Layout(align_items="flex-end", width='100%')
-            #)
-            ##self._demo_button_box.children += (save_widget,)
-            #self._code_input_button_panel.children += (save_widget,)
-        else:
-            self._update_save_widget(callback)
+        self._save_registry_callback = callback
 
 
     @property
@@ -741,6 +565,13 @@ class CodeDemo(VBox, Answer):
         for visual_cue in self._check_visual_cues.values():
             visual_cue.set_status(status)
         self._loading_img.set_status(status)
+
+    def set_answer_status(self, status):
+        if self.save_button is not None:
+            self.save_button.set_status(status)
+
+    def set_answer_status_unsaved(self, change=None):
+        self.set_answer_status(AnswerStatus.UNSAVED)
 
     # for observe
     def set_status_unchecked(self, change=None):

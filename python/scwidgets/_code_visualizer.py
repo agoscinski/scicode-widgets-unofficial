@@ -4,7 +4,7 @@ from ipywidgets import Output
 
 import IPython.display
 
-from ._utils import CodeDemoStatus
+from ._state_widgets import CodeDemoStatus
 
 class CodeVisualizer:
     """CodeDemo supports this interface to execute code before and after the update of the visualizers. It does not inherit from ABC, because then it would conflict with the inheritence of widgets.
