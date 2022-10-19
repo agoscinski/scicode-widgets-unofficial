@@ -544,11 +544,11 @@ class CodeDemo(VBox, Answer):
             #if self.has_update_functionality():
             #    self._loading_img.set_status(CodeDemoStatus.UPDATING)
             if self.has_update_functionality() and self.has_check_functionality():
-                self._display_callbacks.register_callback(self.check_and_update)
+                self.check_and_update()
             elif self.has_update_functionality():
-                self._display_callbacks.register_callback(self.update)
+                self.update()
             elif self.has_check_functionality():
-                self._display_callbacks.register_callback(self.check)
+                self.check()
 
 
     def has_update_button(self):
