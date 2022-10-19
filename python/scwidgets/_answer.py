@@ -147,7 +147,7 @@ class AnswerRegistry(VBox):
                     self._answer_widgets[answer_key].answer_value = answer_value
         if not error_occured:
             self._disable_savebox()
-            self.children = [self._savebox, HBox([self._reload_button, self._save_answers_button]), self._output]
+            self.children = [HBox([self._savebox, self._save_answers_button, self._reload_button]), self._output]
             with self._output:
                 print(f"\033[92m File '{self._answers_filename}' loaded successfully.")
 
