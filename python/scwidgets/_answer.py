@@ -83,7 +83,7 @@ class AnswerRegistry(VBox):
         #Create/load/unload registry widgets
         self._student_name_text  = Text(placeholder='Enter your name here',  style= {'description_width': 'initial'})
         self._load_answers_button = Button(description='Load')
-        self._save_answers_button = Button(description='Save all')
+        self._save_answers_button = Button(description='Save all answers')
         self._create_savefile_button = Button(description='Create file')
         self._reload_button = Button(description='Choose another file')
         self._new_savefile = HBox([self._student_name_text, self._create_savefile_button])
@@ -200,7 +200,7 @@ class AnswerRegistry(VBox):
             with self._output:
                 print(f"\033[92m File {self._answers_filename} successfully created and loaded.")
 
-    def _save_answer(self, change, answer_key=None):
+    def _save_answer(self, change="", answer_key=None):
         if answer_key is None:
             raise ValueError("Cannot save answer with None answer_key")
         self._answer_widgets[answer_key].save_output.clear_output()
