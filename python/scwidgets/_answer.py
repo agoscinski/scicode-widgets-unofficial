@@ -200,7 +200,7 @@ class AnswerRegistry(VBox):
             with self._output:
                 print(f"\033[92m File {self._answers_filename} successfully created and loaded.")
 
-    def _save_answer(self, change="", answer_key=None):
+    def _save_answer(self, change=None, answer_key=None):
         if answer_key is None:
             raise ValueError("Cannot save answer with None answer_key")
         self._answer_widgets[answer_key].save_output.clear_output()
