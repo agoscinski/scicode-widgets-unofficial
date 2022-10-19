@@ -11,6 +11,7 @@ import numpy as np
 import traitlets
 
 from collections.abc import Iterable
+import IPython
 import ipywidgets
 # TODO remove unecessary imports
 from ipywidgets import (
@@ -526,30 +527,23 @@ class CodeDemo(VBox, Answer):
         # needed for chemiscope, chemiscope does not acknowledge updates of settings
         # until the widget has been displayed
         # TODO why this function does not work "self.on_displayed(self, self.update)"  but this one?
-        # Checker file might be not initialized on display, prevent display callback
-        # to prevent checker errors
-        if GLOBAL_TRAITS.teacher_mode and self.has_check_functionality():
-            if self.has_update_functionality():
-                if self.update_button is not None:
-                    self.update_button.disabled = False
-                self.set_status_out_of_date()
-            if self.has_check_functionality():
-                if self.check_button is not None:
-                    self.check_button.disabled = False
-                self.set_status_unchecked()
-        else:
-            # TODO double check if needed and if not remove
-            #if self.has_check_functionality():
-            #    self._loading_img.set_status(CodeDemoStatus.CHECKING)
-            #if self.has_update_functionality():
-            #    self._loading_img.set_status(CodeDemoStatus.UPDATING)
-            if self.has_update_functionality() and self.has_check_functionality():
-                self.check_and_update()
-            elif self.has_update_functionality():
-                self.update()
-            elif self.has_check_functionality():
-                self.check()
+        if self.has_check_functionality():
+            if self.check_button is not None:
+                self.check_button.disabled = False
+            self.set_status_unchecked()
+        if self.has_update_functionality():
+            if self.update_button is not None:
+                self.update_button.disabled = False
+            self.set_status_out_of_date()
 
+    def run_and_display_demo(self):
+        if self.has_update_functionality() and self.has_check_functionality():
+            self.check_and_update()
+        elif self.has_update_functionality():
+            self.update()
+        elif self.has_check_functionality():
+            self.check()
+        IPython.display.display(self)
 
     def has_update_button(self):
         # used to determine if update button has to be initialized
@@ -1357,6 +1351,14 @@ class CodeCheckerRegistry(VBox):
                 return False
 
         decoded_exercise = JSON_DECODER.decode(loaded_exercises[exercise_id])
+        # bring initialized functions 
+        for i in range(len(self.exercise[exercise_id].checks)):
+            decoded_exercise.checks[i].assert_function = \
+                    self.exercise[exercise_id].checks.assert_function
+            decoded_exercise.checks[i].fingerprint_function = \
+                    self.exercise[exercise_id].checks.fingerprint_function
+            decoded_exercise.checks[i].equal_function = \
+                    self.exercise[exercise_id].checks.equal_function
 
         checks_successful = True
         for check in decoded_exercise.checks:
