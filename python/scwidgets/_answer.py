@@ -85,7 +85,7 @@ class AnswerRegistry(VBox):
         self._load_answers_button = Button(description='Load')
         self._save_answers_button = Button(description='Save all')
         self._create_savefile_button = Button(description='Create file')
-        self._reload_button = Button(description='Choose other file')
+        self._reload_button = Button(description='Choose another file')
         self._new_savefile = HBox([self._student_name_text, self._create_savefile_button])
         self._dropdown = Dropdown(
                             options=self._json_list,
@@ -147,7 +147,7 @@ class AnswerRegistry(VBox):
                     self._answer_widgets[answer_key].answer_value = answer_value
         if not error_occured:
             self._disable_savebox()
-            self.children = [self._savebox, self._reload_button, self._output]
+            self.children = [self._savebox, HBox([self._reload_button, self._save_answers_button]), self._output]
             with self._output:
                 print(f"\033[92m File '{self._answers_filename}' loaded successfully.")
 
@@ -260,9 +260,9 @@ class AnswerRegistry(VBox):
         for key, answer_widget in self._answer_widgets.items() : 
             answer_widget.save_output.clear_output()
 
-    def _save_all(self):
+    def _save_all(self, change=""):
         for key in self._answer_widgets.keys(): 
-            self._save_answer(change="", answer_key=key)
+            self._save_answer(answer_key=key, change="")
 
     def register_answer_widget(self, answer_key, widget):
         self._answer_widgets[answer_key] = widget
