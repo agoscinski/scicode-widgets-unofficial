@@ -14,8 +14,6 @@ from ipywidgets import (
     Dropdown
 )
 
-
-
 class Answer:
     """An interface for a widget which contains an answer for a question that can be saved to a file by the widget."""
     def __init__(self):
@@ -37,7 +35,7 @@ class Answer:
 
     def on_save(self):
         raise NotImplementedError("on_save has not been implemented.")
-
+        
     def _init_save_widget(self, callback):
         self._save_button = Button(description="Save answer", layout=Layout(width="200px", height="100%"))
         self._on_save_callback = callback
@@ -254,11 +252,15 @@ class AnswerRegistry(VBox):
         self._student_name_text.disabled = False
         self.children = [self._savebox, self._output]
         self.clear_output()
-        # Clears output in each answer when another registry is loaded
+        
+        # clears output in each answer when another registry is loaded
         for key, answer_widget in self._answer_widgets.items() : 
             answer_widget.save_output.clear_output()
 
- 
+    def _save_all(self):
+        for key in self._answer_widgets.keys(): 
+            self._save_answer(change="", key)
+
     def register_answer_widget(self, answer_key, widget):
         self._answer_widgets[answer_key] = widget
 
@@ -266,8 +268,7 @@ class AnswerRegistry(VBox):
             self._callbacks[answer_key] = functools.partial(self._save_answer, answer_key=answer_key)
             widget.on_save(self._callbacks[answer_key])
         else:
-            raise ValueError(f"Widget {widget} is not of type {Answer.__name__}. Therefore does not support saving the of answer.")
-
+            raise ValueError(f"Widget {widget} is not of type {Answer.__name__}. Therefore does not support saving the of answer.")            
 
 
 class TextareaAnswer(VBox, Answer):
@@ -277,6 +278,7 @@ class TextareaAnswer(VBox, Answer):
         super(TextareaAnswer, self).__init__(
                 [self._answer_textarea], layout=Layout(align_items="flex-start", width='100%'))
 
+    
     @property
     def answer_value(self):
         return self._answer_textarea.value

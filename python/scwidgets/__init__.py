@@ -1,3 +1,6 @@
+"""
+scicode-widgets: a collection of widgets to simplify teaching using jupyter notebooks
+"""
 __version__ = "0.0.0"
 
 from ._utils import (
@@ -34,6 +37,8 @@ __all__ = [
     "AnswerRegistry"
     "TextareaAnswer",
 ]
+
+# loads a CSS file that defines some HTML-level styles to tweak the visual appearance of widgets
 import os
 import IPython
 with open(os.path.join(os.path.dirname(__file__), 'scwidget_style.css')) as file:
