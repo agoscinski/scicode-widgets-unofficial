@@ -82,8 +82,9 @@ class AnswerRegistry(VBox):
 
         #Create/load/unload registry widgets
         self._student_name_text  = Text(placeholder='Enter your name here',  style= {'description_width': 'initial'})
-        self._load_answers_button = Button(description='Confirm')
-        self._create_savefile_button = Button(description='Confirm')
+        self._load_answers_button = Button(description='Load')
+        self._save_answers_button = Button(description='Save all')
+        self._create_savefile_button = Button(description='Create file')
         self._reload_button = Button(description='Choose other file')
         self._new_savefile = HBox([self._student_name_text, self._create_savefile_button])
         self._dropdown = Dropdown(
@@ -104,12 +105,14 @@ class AnswerRegistry(VBox):
 
         #Stateful behavior:
         self._load_answers_button.on_click(self._load_answers)
+        self._save_answers_button.on_click(self._save_all)
         self._create_savefile_button.on_click(self._create_savefile)
         self._dropdown.observe(self._on_choice,names='value')
         self._reload_button.on_click(self._enable_savebox)
 
         with self._preoutput:
             print("Please choose a save file and confirm before answering questions.")
+
     def clear_output(self):
         self._output.clear_output()
 
@@ -183,7 +186,7 @@ class AnswerRegistry(VBox):
         if os.path.exists(answers_filename):
             self.clear_output()
             with self._output:
-                print(f"\033[91m The name '{self._student_name_text.value.lower()}' is already used in file '{self._answers_filename}'. Please provide a new one.")
+                print(f"\033[91m The name '{self._student_name_text.value.lower()}' is already used in file '{answers_filename}'. Please provide a new one.")
         else:
             self._answers_filename = answers_filename
             answers = {key: widget.answer_value for key, widget in self._answer_widgets.items()}
@@ -259,7 +262,7 @@ class AnswerRegistry(VBox):
 
     def _save_all(self):
         for key in self._answer_widgets.keys(): 
-            self._save_answer(change="", key)
+            self._save_answer(change="", answer_key=key)
 
     def register_answer_widget(self, answer_key, widget):
         self._answer_widgets[answer_key] = widget
