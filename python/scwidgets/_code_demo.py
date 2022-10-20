@@ -1183,13 +1183,13 @@ class CodeCheckerRegistry(VBox):
 
         decoded_exercise = JSON_DECODER.decode(loaded_exercises[exercise_id])
         # bring initialized functions 
-        for i in range(len(self.exercise[exercise_id].checks)):
-            decoded_exercise.checks[i].assert_function = \
-                    self.exercise[exercise_id].checks.assert_function
-            decoded_exercise.checks[i].fingerprint_function = \
-                    self.exercise[exercise_id].checks.fingerprint_function
-            decoded_exercise.checks[i].equal_function = \
-                    self.exercise[exercise_id].checks.equal_function
+        for i in range(len(self._exercises[exercise_id].checks)):
+            decoded_exercise.checks[i]._assert_function = \
+                    self._exercises[exercise_id].checks[i]._assert_function
+            decoded_exercise.checks[i]._fingerprint_function = \
+                    self._exercises[exercise_id].checks[i]._fingerprint_function
+            decoded_exercise.checks[i]._equal_function = \
+                    self._exercises[exercise_id].checks[i]._equal_function
 
         checks_successful = True
         for check in decoded_exercise.checks:

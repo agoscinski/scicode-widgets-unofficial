@@ -123,10 +123,18 @@ class Check:
             self._check_id == other._check_id,
             consistency_input_args,
             #consistency_output_ref,
-            self._assert_function == other._assert_function,
-            self._fingerprint_function == other._fingerprint_function,
-            self._equal_function == other._equal_function
+            self.consistent_function(self._assert_function, other._assert_function),
+            self.consistent_function(self._fingerprint_function, other._fingerprint_function),
+            self.consistent_function(self._equal_function, other._equal_function)
         ])
+    @staticmethod
+    def consistent_function(function1, function2):
+        if isinstance(function1, str) and callable(function2):
+            return function1 == function2.__name__
+        elif isinstance(function2, str) and callable(function1):
+            return function1.__name__ == function2
+        else:
+            return function1 == function2
         
 class CheckableOutput: # Rename to OutputRef ?
     def __init__(self, meta_value, fingerprint):
@@ -178,7 +186,7 @@ class MetaValue:
         self._meta['dtype'] = value.dtype if hasattr(value, "dtype") else None
         
     def __dict__(self):
-        return {'value': self._value}
+        return {'value': self._value, "meta": self._meta}
     
     @property
     def value(self):
@@ -194,7 +202,10 @@ class MetaValue:
 class DefaultCheckJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         #print(obj)
-        if isinstance(obj, Exercise):
+
+        if isinstance(obj, type) or isinstance(obj, np.dtype):
+            return obj.__str__()
+        elif isinstance(obj, Exercise):
             arg = {key: self.default(val) for key, val in obj.__dict__().items()}
             #arg['module'] = 'builtins'
             #arg['type'] = 'dict'
@@ -218,20 +229,20 @@ class DefaultCheckJSONEncoder(json.JSONEncoder):
             # if fingerprint exists delete value in meta_value
             #print("obj_dump['arg']['fingerprint']['arg']", obj_dump['arg']['fingerprint']['arg'])
             if obj_dump['arg']['fingerprint']['arg'] != None:
-                obj_dump['arg']['meta_value']['arg']['value']['arg'] = None
+                print(obj_dump['arg']['meta_value']['arg'])
+                obj_dump['arg']['meta_value']['arg']['value'] = None
                 #print(obj_dump['arg']['meta_value'])
             return obj_dump
         elif isinstance(obj, MetaValue):
             # TODO put this back as soon as back decoder is able to do this
             #arg = {key: self.default(val) for key, val in obj.__dict__().items()}
             arg = {key: val for key, val in obj.__dict__().items()}
-            #arg['module'] = 'builtins'
-            #arg['type'] = 'dict'
             return {'arg': arg,
                     'module': str(obj.__class__.__module__),
                     'type': obj.__class__.__name__}
         elif str(obj.__class__.__module__) == 'numpy' and type(obj).__name__ != 'function':
-            return {'arg': obj.tolist(),
+            arg =  obj.tolist() if obj.__class__.__name__ == "ndarray" else obj
+            return {'arg': arg,
                     'module': str(obj.__class__.__module__),
                     'shape': str(obj.shape),
                     'dtype': str(obj.dtype),
@@ -269,7 +280,7 @@ class DefaultCheckJSONDecoder(json.JSONDecoder):
                     #print(dct['module'], dct['arg'])
                     return eval(dct['module']+'.'+dct['arg'])
                 else:
-                    return eval(dct['arg'])
+                    return dct['arg']
             elif dct['type'] == 'tuple':
                 return tuple((self.decode(arg) for arg in dct['arg']))
             elif dct['type'] == 'NoneType':
@@ -277,7 +288,7 @@ class DefaultCheckJSONDecoder(json.JSONDecoder):
             else:
                 return self.decode(dct['arg'])
         elif not('module' in dct.keys()): # these are dictionaries which are skipped in encoding
-            return {key : self.decode(arg) for key, arg in dct.items()}
+            return {key : arg for key, arg in dct.items()}
         elif 'type' in dct.keys():
             if dct['type'] == 'Exercise':
                 #print( [self.decode(dct['arg']['checks']['arg'][i])
@@ -295,25 +306,29 @@ class DefaultCheckJSONDecoder(json.JSONDecoder):
                 #print("CheckableOutput.meta_value", CheckableOutput( *[self.decode(arg) for arg in dct['arg'].values()] ).meta_value)
                 return CheckableOutput( *[self.decode(arg) for arg in dct['arg'].values()] )
             elif dct['type'] == 'MetaValue':
-                #print( "dct['arg']['value']['arg']", dct['arg']['value']['arg'] )
-                if dct['arg']['value']['arg'] is None:
+                #print(dct['arg'])
+                if dct['arg']['value'] is None:
                     #print("Here1")
                     meta_value = MetaValue( None )
                     meta_value._meta = {}
-                    meta_value.meta['type'] = dct['arg']['value']['type']
-                    meta_value.meta['len'] = self.decode(dct['arg']['value']['len']) if 'len' in dct['arg']['value'].keys() else None
-                    meta_value.meta['shape'] = self.decode(dct['arg']['value']['shape']) if 'shape' in dct['arg']['value'].keys() else None
-                    meta_value.meta['dtype'] = self.decode(dct['arg']['value']['dtype']) if 'dtype' in dct['arg']['value'].keys() else None
+                    meta_value.meta['type'] = dct['arg']['meta']['type']
+                    meta_value.meta['len'] = dct['arg']['meta']['len'] if 'len' in dct['arg']['meta'].keys() else None
+                    meta_value.meta['shape'] = tuple(dct['arg']['meta']['shape']) if 'shape' in dct['arg']['meta'].keys() else None
+                    meta_value.meta['dtype'] = dct['arg']['meta']['dtype'] if 'dtype' in dct['arg']['meta'].keys() else None
                 else:
-                    meta_value = MetaValue( *[self.decode(arg) for arg in dct['arg'].values()] )
+                    #print(dct)
+                    meta_value = MetaValue( self.decode(dct['arg']['value']) )
                 #print("meta_value.meta", meta_value.meta)
                 return meta_value
-            elif dct['type'] == 'ndarray':
-                #print("numpy", dct)
-                return np.array(dct['arg'], dtype=dct['dtype'])
             elif dct['module'] == 'numpy':
                 # should cover cases like np.float64
-                return eval(f"np.{dct['arg']}")
+                if dct['type'] == 'function':
+                    return eval(f"np.{dct['arg']}")
+                elif dct['type'] == 'ndarray':
+                    #print("numpy", dct)
+                    return np.array(dct['arg'], dtype=dct['dtype'])
+                else:
+                    return eval(f"np.{dct['type']}({dct['arg']})")
         return dct
 
 
