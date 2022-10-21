@@ -984,7 +984,35 @@ class CodeCheckerRegistry(VBox):
         
         self._exercises[exercise_name_id] = Exercise([])
 
+    def add_check_outputref(self, exercise_id, inputs_args,
+                       output_ref=None,
+                       assert_function=None,
+                       fingerprint_function=None,
+                       equal_function=None):
+        if isinstance(exercise_id, CodeDemo):
+            exercise_id = self._exercise_name_ids[hash(exercise_id)]
+
+        largest_current_check_id = max([0] + [check.check_id
+                                        for check in self._exercises[exercise_id].checks])
+        check_ids = [largest_current_check_id+i  for i, _ in enumerate(inputs_args)]
+
+        new_checks = [Check(check_ids[i],
+                                 input_args,
+                                 None, # output_ref
+                                 assert_function, fingerprint_function,
+                                                   equal_function)
+             for i, input_args in enumerate(inputs_args)]
+        self._exercises[exercise_id] = Exercise(new_checks)
         
+    #TODO technically input_args is not needed
+    def output_check_reference(self, exercise_id):
+        self.produce_check_reference(exercise_id)
+        self._code_demos[exercise_id].code_checker_output.clear_output()
+        for check in self._exercises[exercise_id].checks:
+            with self._code_demos[exercise_id].code_checker_output:
+                print(check.__dict__())
+                print('outputref', check.output_ref.meta_value.__dict__())
+
     def add_check(self, exercise_id, inputs_args,
                        assert_function=None,
                        fingerprint_function=None,
