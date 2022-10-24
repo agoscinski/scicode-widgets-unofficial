@@ -4,7 +4,7 @@ import os
 import sys
 import json
 import functools
-
+from ase import Atoms
 import traitlets
 import numpy as np
 
@@ -444,13 +444,14 @@ class CodeDemo(VBox, Answer):
         if 'suppress_stdout' in kwargs.keys():
             suppress_stdout = kwargs.pop('suppress_stdout')
         else:
-            suppress_stdout = True
+            suppress_stdout = False
+        suppress_stdout = False
         try:
             #if suppress_stdout:
             #    orig_stdout = sys.stdout
             #print(args, kwargs)
-            with ConfigurableOutput(suppress_std_out=False, suppress_std_err=False):
-                out = self._code_input.get_function_object()(*args, **kwargs)
+            #with ConfigurableOutput(suppress_std_out=False, suppress_std_err=False):
+            out = self._code_input.get_function_object()(*args, **kwargs)
             #if suppress_stdout:
             #    sys.stdout = orig_stdout
         except Exception as e:
@@ -931,9 +932,9 @@ class CodeChecker:
         return nb_failed_checks
 
 class CodeCheckerRegistry(VBox):
-    def __init__(self, filename):
+    def __init__(self, filename, check_from_file = True):
         self.filename = filename
-
+        self.check_from_file = check_from_file
         self._code_demos = {}
         self._exercises = {}
         self._exercise_name_ids = {}
@@ -975,7 +976,6 @@ class CodeCheckerRegistry(VBox):
     
     # TODO rename to init_exercises?
     def init_checks(self, exercise_name_id, code_demo):
-        
         self._exercises[exercise_name_id] = Exercise([])
         self._exercise_name_ids[hash(code_demo)] = exercise_name_id
         self._code_demos[exercise_name_id] = code_demo
@@ -983,9 +983,9 @@ class CodeCheckerRegistry(VBox):
         code_demo.create_check_button.on_click(functools.partial(self.create_check, exercise_name_id))
         
         self._exercises[exercise_name_id] = Exercise([])
-
+    #Joao is here
     def add_check_outputref(self, exercise_id, inputs_args,
-                       output_ref=None,
+                       pasted_output=None,
                        assert_function=None,
                        fingerprint_function=None,
                        equal_function=None):
@@ -995,23 +995,58 @@ class CodeCheckerRegistry(VBox):
         largest_current_check_id = max([0] + [check.check_id
                                         for check in self._exercises[exercise_id].checks])
         check_ids = [largest_current_check_id+i  for i, _ in enumerate(inputs_args)]
+        if pasted_output != None:
+            for output in pasted_output:
+                out_fingerprint = None if (fingerprint_function is None) \
+                                    else fingerprint_function(output)
+                new_checks = [Check(check_ids[i],
+                                        input_args,
+                                        CheckableOutput(MetaValue(output), out_fingerprint),
+                                        assert_function, fingerprint_function,
+                                                        equal_function)
+                    for i, input_args in enumerate(inputs_args)]
+                self._exercises[exercise_id] = Exercise(new_checks)
+        else : 
+            print("No output was given, cannot produce check.")
+            
+    #Joao is here
+    #TODO technically input_args is not needed, but use them anyway during prototyping
+    def output_check_reference(self, exercise_id, input_args):
+        # @Joao: Need feedback here, I believe np.set_printoptions does not give a way 
+        # to print something that constructs an array when printed. I make a function to do this...
+        if len(input_args) <= 0:
+            printable_output = self.parse(self._code_demos[exercise_id].run_code(*input_args.values())).__str__()
+            print("Copy paste this to check_registry.add_check_outputref():")
+            print(printable_output)
+        else : 
+            printable_output = [self.parse(self._code_demos[exercise_id].run_code(*input_arg.values())) for input_arg in input_args]
+            print("Copy paste this to check_registry.add_check_outputref():")
+            print("[")
+            [print(output +",") for output in printable_output]
+            print("]")
 
-        new_checks = [Check(check_ids[i],
-                                 input_args,
-                                 None, # output_ref
-                                 assert_function, fingerprint_function,
-                                                   equal_function)
-             for i, input_args in enumerate(inputs_args)]
-        self._exercises[exercise_id] = Exercise(new_checks)
-        
-    #TODO technically input_args is not needed
-    def output_check_reference(self, exercise_id):
-        self.produce_check_reference(exercise_id)
-        self._code_demos[exercise_id].code_checker_output.clear_output()
-        for check in self._exercises[exercise_id].checks:
-            with self._code_demos[exercise_id].code_checker_output:
-                print(check.__dict__())
-                print('outputref', check.output_ref.meta_value.__dict__())
+    def parse(self,teacher_output):
+        """Given an object, outputs a string corresponding 
+        to the call to a constructor of the object
+        Parameters
+        ----------
+        object : Any
+                Supported types : np.array
+        Returns
+        -------
+        str 
+                If object is an instance of supported types, returns a constructor, otherwise, 
+                return the object itself
+        """
+        np.set_printoptions(suppress=True)
+        if isinstance(teacher_output,list):
+            if len(teacher_output) != 0 and isinstance(teacher_output[0],(np.ndarray, np.generic)):
+                print(np.array2string(array, separator=', '))
+                return [f"np.array({np.array2string(array, separator=', ')})" for array in teacher_output ]
+        elif isinstance(teacher_output, (np.ndarray, np.generic)):
+            return f"np.array({teacher_output.tolist().__str__()})"
+        else:
+            return teacher_output
 
     def add_check(self, exercise_id, inputs_args,
                        assert_function=None,
@@ -1027,7 +1062,7 @@ class CodeCheckerRegistry(VBox):
         # then only the standard type, len/shape
         # if no assert function is given, then the equal check is performend and has generic output
         # if fingerprint function is given, then output is transformed before it is saved
-        equal_function = np.allclose if equal_function is None else equal_function
+        #equal_function = np.allclose if equal_function is None else equal_function
         
         # single argument
         if isinstance(inputs_args, dict):
@@ -1115,7 +1150,7 @@ class CodeCheckerRegistry(VBox):
         if (success):
             success = self.update_check_file(exercise_id)
             with self._code_demos[exercise_id].code_checker_output:
-                print("Creating checks finished successfull.")
+                print("Creating checks finished successfully.")
             self._code_demos[exercise_id].set_status_unchecked()
             return True
         return False
@@ -1195,31 +1230,37 @@ class CodeCheckerRegistry(VBox):
         #print("len(self._exercises[exercise_id].checks):", len(self._exercises['example_base'].checks))
         # TODO better to just load from file the checks and never keep
         #      in memory _exercise and the guess work in add_check
-        with open(self.filename, 'r') as file:
-            loaded_exercises = json.load(file)
-        if not(exercise_id in loaded_exercises.keys()):
-            if GLOBAL_TRAITS.teacher_mode:
-                with self._code_demos[exercise_id].code_checker_output:
-                    raise ValueError(f"Exercise {exercise_id} has no checks." \
-                                     " You probably forgot to create checks before checking.")
-                return False
-            else:
-                with self._code_demos[exercise_id].code_checker_output:
-                    raise ValueError(f"Exercise {exercise_id} has no checks." \
-                                     " Your check file seems faulty. Ask a teacher.")
-                return False
+        if self.check_from_file:
+            with open(self.filename, 'r') as file:
+                loaded_exercises = json.load(file)
+            if not(exercise_id in loaded_exercises.keys()):
+                if GLOBAL_TRAITS.teacher_mode:
+                    with self._code_demos[exercise_id].code_checker_output:
+                        raise ValueError(f"Exercise {exercise_id} has no checks." \
+                                        " You probably forgot to create checks before checking.")
+                    return False
+                else:
+                    with self._code_demos[exercise_id].code_checker_output:
+                        raise ValueError(f"Exercise {exercise_id} has no checks." \
+                                        " Your check file seems faulty. Ask a teacher.")
+                    return False
 
-        decoded_exercise = JSON_DECODER.decode(loaded_exercises[exercise_id])
-        # bring initialized functions 
-        for i in range(len(self._exercises[exercise_id].checks)):
-            decoded_exercise.checks[i]._assert_function = \
-                    self._exercises[exercise_id].checks[i]._assert_function
-            decoded_exercise.checks[i]._fingerprint_function = \
-                    self._exercises[exercise_id].checks[i]._fingerprint_function
-            decoded_exercise.checks[i]._equal_function = \
-                    self._exercises[exercise_id].checks[i]._equal_function
+            decoded_exercise = JSON_DECODER.decode(loaded_exercises[exercise_id])
+            # bring initialized functions 
+            for i in range(len(self._exercises[exercise_id].checks)):
+                decoded_exercise.checks[i]._assert_function = \
+                        self._exercises[exercise_id].checks[i]._assert_function
+                decoded_exercise.checks[i]._fingerprint_function = \
+                        self._exercises[exercise_id].checks[i]._fingerprint_function
+                decoded_exercise.checks[i]._equal_function = \
+                        self._exercises[exercise_id].checks[i]._equal_function
 
-        checks_successful = True
+            checks_successful = True
+
+        else:
+            #@Joao: In this case, we load the exercises directly from the checker_registry and not from the json file
+            checks_successful = True
+            decoded_exercise = self._exercises[exercise_id]
         for check in decoded_exercise.checks:
             try:
                 out_widget_student = self._code_demos[exercise_id].run_code(*check.input_args.values())
@@ -1236,12 +1277,12 @@ class CodeCheckerRegistry(VBox):
                     if GLOBAL_TRAITS.teacher_mode:
                         with self._code_demos[exercise_id].code_checker_output:
                             raise ValueError(f"A check does not have output reference. check information:\n{check}\n" \
-                                             "\nYou probably forgot to create checks before checking.")
+                                            "\nYou probably forgot to create checks before checking.")
                         return False
                     else:
                         with self._code_demos[exercise_id].code_checker_output:
                             raise ValueError(f"A check does not have output reference. check information:\n{check}\n" \
-                                             "\nYour check file seems faulty. Ask a teacher.")
+                                            "\nYour check file seems faulty. Ask a teacher.")
                         return False
 
                 # Because Output continues after error, to prevent repeatable printing we still have to go out
@@ -1252,11 +1293,14 @@ class CodeCheckerRegistry(VBox):
             #        warnings.warn(
             #            f"check does not have output reference. check={check}"
             #        )
+
+            #@Joao: The next line suposes that the Check object output contains a metavalue
             out_widget_teacher = check.output_ref.meta_value
             out_teacher = check.output_ref.meta_value.value if (check.fingerprint_function is None) \
                                     else check.output_ref.fingerprint
             if not(out_widget_student.__class__.__name__ == out_widget_teacher.meta['type']):
                 with self._code_demos[exercise_id].code_checker_output:
+                    print(f"out_widget_teacher.__dict__():\n {out_widget_teacher.__dict__()}")
                     print(f"TypeCheck failed: Expected type {out_widget_teacher.meta['type']} but got {out_widget_student.__class__.__name__}")
                 return False
             elif (out_widget_teacher.meta['shape'] is not None) and \

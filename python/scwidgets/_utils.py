@@ -1,7 +1,7 @@
 import inspect
 import sys
 import json
-
+from ase import Atoms
 import numpy as np
 
 from ipywidgets import Output
@@ -247,6 +247,10 @@ class DefaultCheckJSONEncoder(json.JSONEncoder):
                     'shape': str(obj.shape),
                     'dtype': str(obj.dtype),
                     'type': obj.__class__.__name__}
+        elif str(obj.__class__.__module__) == 'ase.atoms':
+            return {'arg': {'symbols': obj.symbols.__str__(), 'positions': obj.positions.tolist(), 'cell': obj.cell.tolist(), 'pbc': obj.pbc.tolist()},
+                    'module': str(obj.__class__.__module__),
+                    'type': obj.__class__.__name__}
         elif obj.__class__.__module__ == 'builtins':
             if obj.__class__.__name__ == 'function':
                 return {'arg': obj.__name__,
@@ -287,8 +291,6 @@ class DefaultCheckJSONDecoder(json.JSONDecoder):
                 return None
             else:
                 return self.decode(dct['arg'])
-        elif not('module' in dct.keys()): # these are dictionaries which are skipped in encoding
-            return {key : arg for key, arg in dct.items()}
         elif 'type' in dct.keys():
             if dct['type'] == 'Exercise':
                 #print( [self.decode(dct['arg']['checks']['arg'][i])
@@ -329,6 +331,10 @@ class DefaultCheckJSONDecoder(json.JSONDecoder):
                     return np.array(dct['arg'], dtype=dct['dtype'])
                 else:
                     return eval(f"np.{dct['type']}({dct['arg']})")
+            elif dct['module'] == 'ase.atoms':
+                return eval(f"Atoms(**{dct['arg']})")
+        elif not('module' in dct.keys()): # these are dictionaries which are skipped in encoding
+            return {key : arg for key, arg in dct.items()}
         return dct
 
 
