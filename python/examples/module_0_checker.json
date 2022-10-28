@@ -1,0 +1,307 @@
+{
+  "cs_code_demo": {
+    "arg": {
+      "checks": {
+        "arg": [
+          {
+            "arg": {
+              "check_id": {
+                "arg": 0,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {},
+                "module": "builtins",
+                "type": "dict",
+                "len": 0
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": {
+                        "arg": {
+                          "symbols": "H2",
+                          "positions": [
+                            [
+                              0.7,
+                              0.5,
+                              0.0
+                            ],
+                            [
+                              -0.7,
+                              0.5,
+                              0.0
+                            ]
+                          ],
+                          "cell": [
+                            [
+                              0.0,
+                              0.0,
+                              0.0
+                            ],
+                            [
+                              0.0,
+                              0.0,
+                              0.0
+                            ],
+                            [
+                              0.0,
+                              0.0,
+                              0.0
+                            ]
+                          ],
+                          "pbc": [
+                            false,
+                            false,
+                            false
+                          ]
+                        },
+                        "module": "ase.atoms",
+                        "type": "Atoms"
+                      },
+                      "meta": {
+                        "type": "Atoms",
+                        "len": 2,
+                        "shape": null,
+                        "dtype": null
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": "custom_assert_function",
+                "module": "__main__",
+                "type": "function"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          }
+        ],
+        "module": "builtins",
+        "type": "list",
+        "len": 1
+      }
+    },
+    "module": "scwidgets._utils",
+    "type": "Exercise"
+  },
+  "sine_code_demo": {
+    "arg": {
+      "checks": {
+        "arg": [
+          {
+            "arg": {
+              "check_id": {
+                "arg": 0,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "x": 1,
+                  "a": 1,
+                  "w": 1,
+                  "abs": true
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 4
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": 0.8414709848078965,
+                      "meta": {
+                        "type": "float64",
+                        "len": null,
+                        "shape": [],
+                        "dtype": "float64"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          },
+          {
+            "arg": {
+              "check_id": {
+                "arg": 1,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "x": 1.5707963267948966,
+                  "a": 2,
+                  "w": 1,
+                  "abs": false
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 4
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": 2.4492935982947064e-16,
+                      "meta": {
+                        "type": "float64",
+                        "len": null,
+                        "shape": [],
+                        "dtype": "float64"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          },
+          {
+            "arg": {
+              "check_id": {
+                "arg": 2,
+                "module": "builtins",
+                "type": "int"
+              },
+              "input_args": {
+                "arg": {
+                  "x": 0,
+                  "a": 3,
+                  "w": 0.5,
+                  "abs": true
+                },
+                "module": "builtins",
+                "type": "dict",
+                "len": 4
+              },
+              "output_ref": {
+                "arg": {
+                  "meta_value": {
+                    "arg": {
+                      "value": 0.0,
+                      "meta": {
+                        "type": "float64",
+                        "len": null,
+                        "shape": [],
+                        "dtype": "float64"
+                      }
+                    },
+                    "module": "scwidgets._utils",
+                    "type": "MetaValue"
+                  },
+                  "fingerprint": {
+                    "arg": null,
+                    "module": "builtins",
+                    "type": "NoneType"
+                  }
+                },
+                "module": "scwidgets._utils",
+                "type": "CheckableOutput"
+              },
+              "assert_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "fingerprint_function": {
+                "arg": null,
+                "module": "builtins",
+                "type": "NoneType"
+              },
+              "equal_function": {
+                "arg": "allclose",
+                "module": "numpy",
+                "type": "function"
+              }
+            },
+            "module": "scwidgets._utils",
+            "type": "Check"
+          }
+        ],
+        "module": "builtins",
+        "type": "list",
+        "len": 3
+      }
+    },
+    "module": "scwidgets._utils",
+    "type": "Exercise"
+  }
+}

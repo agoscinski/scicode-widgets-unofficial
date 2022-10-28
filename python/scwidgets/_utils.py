@@ -86,7 +86,7 @@ class Check:
     def __dict__(self):
         return {'check_id': self._check_id,
                 'input_args': self._input_args,
-                'output_ref': self._output_ref,
+                'output_ref': self._output_ref, # None if self._output_ref is None else self._output_ref.__dict__(),
                 'assert_function': self._assert_function,
                 'fingerprint_function': self._fingerprint_function,
                 'equal_function': self._equal_function}
@@ -152,7 +152,7 @@ class CheckableOutput: # Rename to OutputRef ?
         return self._fingerprint
     
     def __dict__(self):
-        return {'meta_value': self._meta_value,
+        return {'meta_value': self._meta_value,#None if self._meta_value is None else self._meta_value.__dict__(),
                 'fingerprint': self._fingerprint}
 
     def __eq__(self, other):
@@ -176,12 +176,11 @@ class MetaValue:
         #print("value.__class__.__name__", value.__class__.__name__)
         #print("value", value)
         
-        if hasattr(value, "__len__"):
-            # np.array(np.nan) offers a len function which raises an error
-            try:
-                self._meta['len'] = value.__len__()
-            except:
-                self._meta['len'] = None
+        # ndarray of size 0 have __len__ but return error
+        try:
+            self._meta['len'] = value.__len__()
+        except:
+            self._meta['len'] = None
         self._meta['shape'] = value.shape if hasattr(value, "shape") else None
         self._meta['dtype'] = value.dtype if hasattr(value, "dtype") else None
         
@@ -229,7 +228,7 @@ class DefaultCheckJSONEncoder(json.JSONEncoder):
             # if fingerprint exists delete value in meta_value
             #print("obj_dump['arg']['fingerprint']['arg']", obj_dump['arg']['fingerprint']['arg'])
             if obj_dump['arg']['fingerprint']['arg'] != None:
-                print(obj_dump['arg']['meta_value']['arg'])
+                #print(obj_dump['arg']['meta_value']['arg'])
                 obj_dump['arg']['meta_value']['arg']['value'] = None
                 #print(obj_dump['arg']['meta_value'])
             return obj_dump
@@ -310,16 +309,18 @@ class DefaultCheckJSONDecoder(json.JSONDecoder):
             elif dct['type'] == 'MetaValue':
                 #print(dct['arg'])
                 if dct['arg']['value'] is None:
-                    #print("Here1")
                     meta_value = MetaValue( None )
                     meta_value._meta = {}
                     meta_value.meta['type'] = dct['arg']['meta']['type']
                     meta_value.meta['len'] = dct['arg']['meta']['len'] if 'len' in dct['arg']['meta'].keys() else None
-                    meta_value.meta['shape'] = tuple(dct['arg']['meta']['shape']) if 'shape' in dct['arg']['meta'].keys() else None
+                    meta_value.meta['shape'] = tuple(dct['arg']['meta']['shape']) if ('shape' in dct['arg']['meta'].keys()) and (dct['arg']['meta']['shape'] is not None) else None
                     meta_value.meta['dtype'] = dct['arg']['meta']['dtype'] if 'dtype' in dct['arg']['meta'].keys() else None
                 else:
-                    #print(dct)
                     meta_value = MetaValue( self.decode(dct['arg']['value']) )
+                    meta_value.meta['type'] = dct['arg']['meta']['type']
+                    meta_value.meta['len'] = dct['arg']['meta']['len'] if 'len' in dct['arg']['meta'].keys() else None
+                    meta_value.meta['shape'] = tuple(dct['arg']['meta']['shape']) if ('shape' in dct['arg']['meta'].keys()) and (dct['arg']['meta']['shape'] is not None) else None
+                    meta_value.meta['dtype'] = dct['arg']['meta']['dtype'] if 'dtype' in dct['arg']['meta'].keys() else None
                 #print("meta_value.meta", meta_value.meta)
                 return meta_value
             elif dct['module'] == 'numpy':
