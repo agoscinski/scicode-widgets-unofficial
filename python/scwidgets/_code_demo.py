@@ -8,6 +8,7 @@ import numpy as np
 import traitlets
 
 from collections.abc import Iterable
+import IPython
 import ipywidgets
 # TODO remove unecessary imports
 from ipywidgets import (
@@ -515,6 +516,10 @@ class CodeDemo(VBox, Answer):
         elif self.has_check_functionality():
             self._display_callbacks.register_callback(self.check)
 
+    @property
+    def check_output(self):
+        return self._error_output
+
     def has_update_button(self):
         # used to determine if update button has to be initialized
         # to cover the cases where no code input is used
@@ -685,6 +690,62 @@ class CodeDemo(VBox, Answer):
 
         if self.has_update_functionality():
             self.set_update_status(CodeDemoStatus.UP_TO_DATE)
+
+    def run_and_display_demo(self):
+        if self.has_update_functionality() and self.has_check_functionality():
+            self.check_and_update()
+        elif self.has_update_functionality():
+            self.update()
+        elif self.has_check_functionality():
+            self.check()
+        IPython.display.display(self)
+
+    def produce_output(self, *args, **kwargs):
+        # TODO remove function within function
+        # For checking we ignore
+        if 'suppress_stdout' in kwargs.keys():
+            suppress_stdout = kwargs.pop('suppress_stdout')
+        else:
+            suppress_stdout = False
+        suppress_stdout = False
+        try:
+            #if suppress_stdout:
+            #    orig_stdout = sys.stdout
+            #print(args, kwargs)
+            #with ConfigurableOutput(suppress_std_out=False, suppress_std_err=False):
+            out = self._code_input.get_function_object()(*args, **kwargs)
+            #if suppress_stdout:
+            #    sys.stdout = orig_stdout
+        except Exception as e:
+            # TODO hide trace before student code execution, not trivial
+            #if suppress_stdout:
+            #    sys.stdout = orig_stdout
+            # because some errors in code widgets do not print the
+            # traceback correctly, we print the last step manually
+            tb = sys.exc_info()[2]
+            while not (tb.tb_next is None):
+                tb = tb.tb_next
+            if tb.tb_frame.f_code.co_name == self._code_input.function_name:
+                # index = line-1
+                line_number = tb.tb_lineno - 1
+                code = (
+                    self._code_input.function_name
+                    + '"""\n'
+                    + self._code_input.docstring
+                    + '"""\n'
+                    + self._code_input.function_body
+                ).splitlines()
+                error = f"<widget_self._code_input.widget_self._code_input in {self._code_input.function_name}({self._code_input.function_parameters})\n"
+                for i in range(
+                    max(0, line_number - 2), min(len(code), line_number + 3)
+                ):
+                    if i == line_number:
+                        error += f"----> {i} {code[i]}\n"
+                    else:
+                        error += f"      {i} {code[i]}\n"
+                e.args = (str(e.args[0]) + "\n\n" + error,)
+            raise e
+        return out
 
     @property
     def code_input(self):
@@ -913,7 +974,6 @@ class ParametersBox(VBox):
         if not (all([type(option) is str for option in options])):
             raise ValueError("Non-str in options")
         return default, desc, options, slargs
-
 
 class CodeChecker:
     """
