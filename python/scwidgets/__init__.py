@@ -5,7 +5,7 @@ from ._utils import (
 )
 
 from ._check_registry import (
-    CodeCheckerRegistry
+    CheckRegistry
 )
 
 from ._code_demo import (

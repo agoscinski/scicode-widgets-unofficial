@@ -272,7 +272,7 @@ class CodeDemo(VBox, Answer):
         update_on_input_parameter_change=True, # TODO name should also include check functionality
         visualizers=None,
         update_visualizers=None,
-        code_checker=None,
+        check_registry=None,
         separate_check_and_update_buttons=False,
     ):
 
@@ -289,7 +289,8 @@ class CodeDemo(VBox, Answer):
 
         self._update_on_input_parameter_change = update_on_input_parameter_change
         self._update_visualizers = update_visualizers
-        self._code_checker = code_checker
+        self._check_registry = check_registry
+
         self._separate_check_and_update_buttons = separate_check_and_update_buttons
 
         self._save_button = None
@@ -493,6 +494,7 @@ class CodeDemo(VBox, Answer):
         else:
             self._code_input_button_panel =  HBox([self._demo_button_box], layout=Layout(align_items="flex-start", width='100%'))
         demo_widgets.append(self._code_input_button_panel)
+        demo_widgets.append(self._error_output)
 
         if len(self._visualizers) > 0:
             if self.has_update_functionality():
@@ -515,6 +517,14 @@ class CodeDemo(VBox, Answer):
             self._display_callbacks.register_callback(self.update)
         elif self.has_check_functionality():
             self._display_callbacks.register_callback(self.check)
+
+    def on_click_check_button(self, callback, remove=False):
+        if self.check_button is not None:
+            self.check_button.on_click(callback, remove)
+
+    def on_click_update_button(self, callback, remove=False):
+        if self.update_button is not None:
+            self.update_button.on_click(callback, remove)
 
     @property
     def check_output(self):
@@ -548,11 +558,12 @@ class CodeDemo(VBox, Answer):
         return self.has_check_button()
 
     def has_check_button(self):
-        return (self._code_checker is not None) and (self._code_checker.nb_checks > 0)
+        return self._check_registry is not None
 
     def check_and_update(self, change=None):
         self.check(change)
         self.update(change)
+
 
     def check(self, change=None):
         """
@@ -560,27 +571,30 @@ class CodeDemo(VBox, Answer):
         """
         if self.has_check_functionality():
             self.set_check_status(CodeDemoStatus.CHECKING)
-        if self._code_checker is None:
-            return 0
+        if self._check_registry is None:
+            return True
         self._error_output.clear_output()
         self._validation_text.value = ""
-        with self._error_output:
-            try:
-                nb_failed_checks = self._code_checker.check(self._code_input)
-            except:
-                nb_failed_checks = self._code_checker.nb_checks
-            finally:
-                self.set_check_status(CodeDemoStatus.CHECKED)
-        self._validation_text.value = "&nbsp;" * 4
-        if nb_failed_checks:
-            self._validation_text.value += f"<span style='color:red'> {nb_failed_checks} out of {self._code_checker.nb_checks} tests failed.</style>"
-        else:
-            self._validation_text.value += (
-                f"<span style='color:green'> All tests passed!</style>"
-            )
-        if self.has_check_functionality() and self._separate_check_and_update_buttons:
+        try:
+            checks_failed = True
+            with self._error_output:
+                checks_failed = not(self._check_registry.check_widget_outputs(self))
+        except Exception as e:
+            checks_failed = True
+            with self._error_output:
+                raise e
+        finally:
+            self._validation_text.value = "&nbsp;" * 4
+            if checks_failed:
+                self._validation_text.value += f"<span style='color:red'> An assert failed.</style>"
+            else:
+                self._validation_text.value += (
+                    f"<span style='color:green'> All asserts passed!</style>"
+                )
+            # TODO something wrong with loading image when if case is used
+            #if self.has_check_functionality() and self._separate_check_and_update_buttons:
             self.set_check_status(CodeDemoStatus.CHECKED)
-        return nb_failed_checks
+        return checks_failed
 
     @property
     def save_button(self):
@@ -700,7 +714,7 @@ class CodeDemo(VBox, Answer):
             self.check()
         IPython.display.display(self)
 
-    def produce_output(self, *args, **kwargs):
+    def compute_output(self, *args, **kwargs):
         # TODO remove function within function
         # For checking we ignore
         if 'suppress_stdout' in kwargs.keys():
@@ -773,8 +787,8 @@ class CodeDemo(VBox, Answer):
         self._update_visualizers = new_update_visualizers
 
     @property
-    def code_checker(self):
-        return self._code_checker
+    def check_registry(self):
+        return self._check_registry
 
     @property
     def separate_check_and_update_buttons(self):
