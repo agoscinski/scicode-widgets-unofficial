@@ -13,41 +13,29 @@ fingerprint(output1):
 
 class CheckRegistry:
     def __init__(self):
-        self._exercise_name_to_checks = {} # exercise_name -> list of checks
-        self._exercise_name_to_widget = {} # exercise_name -> widget
-        self._widget_to_exercise_name = {} # widget -> exercise_name
+        self._checks = {}
 
-    def register_exercise(self, exercise_name, widget):
+    def register_checks(self, widget):
         """initialize checks, if checks exist then it resets them"""
-        self._exercise_name_to_checks[exercise_name] = []
-        self._exercise_name_to_widget[exercise_name] = widget
-        self._widget_to_exercise_name[widget] = exercise_name
+        self._checks[widget] = []
 
-    def add_check(self, exercise_name, inputs_parameters, reference_outputs=None, process_output=None, custom_assert=None, equal=None):
-        check = Check(self._exercise_name_to_widget[exercise_name], inputs_parameters, reference_outputs, process_output, custom_assert, equal)
-        self._exercise_name_to_checks[exercise_name].append(check)
+    def add_check(self, widget, inputs_parameters, reference_outputs=None, process_output=None, custom_assert=None, equal=None):
+        check = Check(widget, inputs_parameters, reference_outputs, process_output, custom_assert, equal)
+        self._checks[widget].append(check)
 
-    def compute_and_set_reference_outputs(self, exercise_key, change=None):
-        for check in self.get_checks(exercise_key):
+    def compute_and_set_reference_outputs(self, widget, change=None):
+        for check in self._checks[widget]:
             check.compute_and_set_reference_outputs()
 
-    def print_reference_outputs(self, exercise_key, fingerprint=None):
+    def print_reference_outputs(self, widget, fingerprint=None):
         if fingerprint is None:
             fingerprint = lambda x: x
-        for i, check in enumerate(self.get_checks(exercise_key)):
+        for i, check in enumerate(self._checks[widget]):
             print(f"Check {i}:\n{[fingerprint(reference_output) for reference_output in check.compute_reference_outputs()]}")
 
-    def get_checks(self, exercise_key):
-        if isinstance(exercise_key, str):
-            return self._exercise_name_to_checks[exercise_key]
-        elif isinstance(exercise_key, ipywidgets.Widget):
-            return self._exercise_name_to_checks[self._widget_to_exercise_name[exercise_key]]
-        else:
-            raise ValueError("exercise_key is not valid type.")
-
-    def check_widget_outputs(self, exercise_key, change=None):
+    def check_widget_outputs(self, widget, change=None):
         check_successes = []
-        for check in self.get_checks(exercise_key):
+        for check in self._checks[widget]:
             check_successes.append( check.check_widget_outputs() )
         return all(check_successes)
 

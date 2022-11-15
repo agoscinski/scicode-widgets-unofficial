@@ -512,10 +512,12 @@ class CodeDemo(VBox, Answer):
         # until the widget has been displayed
         # TODO why this function does not work "self.on_displayed(self, self.update)"  but this one?
         if self.has_update_functionality() and self.has_check_functionality():
+            self._check_registry.register_checks(self)
             self._display_callbacks.register_callback(self.check_and_update)
         elif self.has_update_functionality():
             self._display_callbacks.register_callback(self.update)
         elif self.has_check_functionality():
+            self._check_registry.register_checks(self)
             self._display_callbacks.register_callback(self.check)
 
     def on_click_check_button(self, callback, remove=False):
