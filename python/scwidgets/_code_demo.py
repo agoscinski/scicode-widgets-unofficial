@@ -446,6 +446,7 @@ class CodeDemo(VBox, Answer):
                             self.update_button.set_status_out_of_date, "function_body")
                 if len(self._visualizers) > 0:
                     self._code_input.observe(
+                            #Joao: I was here...
                             self._update_visual_cues['visualizers'].set_status_out_of_date, "function_body")
                 code_input_panel.append(self._update_visual_cues['code_input'])
 
@@ -462,7 +463,7 @@ class CodeDemo(VBox, Answer):
                                 self._update_visual_cues['visualizers'].set_status_out_of_date, "value")
                     for visualizer in self._visualizers:
                         control.observe(
-                                visualizer.set_status_out_of_date, "value")
+                                self._update_visual_cues['visualizers'].set_status_out_of_date, "value")
                     if self.update_button is not None:
                         control.observe(
                                 self.update_button.set_status_out_of_date, "value")
@@ -643,7 +644,8 @@ class CodeDemo(VBox, Answer):
         for visual_cue in self._update_visual_cues.values():
             visual_cue.set_status(status)
         for visualizer in self._visualizers:
-            visualizer.set_status(status)
+            #Joao: I was here...
+            self._update_visual_cues['visualizers'].set_status(status)
         #if self._input_parameters_box is not None:
         #    self._input_parameters_box.set_status(status)
         self._loading_img.set_status(status)
