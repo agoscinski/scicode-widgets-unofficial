@@ -4,6 +4,10 @@ from ._utils import (
     CodeDemoStatus
 )
 
+from ._check_registry import (
+    CheckRegistry
+)
+
 from ._code_demo import (
     CodeDemo,
     ParametersBox,
