@@ -1,29 +1,26 @@
+from ast import Assert
+from configparser import MissingSectionHeaderError
 import unittest
 import sys
 import os
 import json
-
+import io 
 from IPython.display import display
 from IPython.core.interactiveshell import InteractiveShell
 
 from widget_code_input import WidgetCodeInput
-from scwidgets import (CodeDemo, CodeChecker, ParametersBox, PyplotOutput, ClearedOutput, TextareaAnswer, AnswerRegistry)
+import widget_code_input.utils as utils
+from scwidgets import (CodeDemo, CodeChecker, ParametersBox, PyplotOutput, ClearedOutput, TextareaAnswer, AnswerRegistry, CodeDemoStatus)
 
 import matplotlib.pyplot as plt
 import matplotlib
+
+from parameterized import parameterized_class
 # same backend as in jupyter notebook
 matplotlib.use('module://ipympl.backend_nbagg')
 
 
-# TODO(Joao) tests for checking if * is correctly updated
-# cases:
-# - change code input check button description updated?
-# - change code input update button description updated?
-# - change params_box update button description updated?
-# all cases for merged und separated check and update button
-
-# TODO fix typo in class name
-class SurpressStdOutput():
+class SupressStdOutput():
     def __init__(self, redirect_to_null=False, suppress_error=False):
         self.suppress_error = suppress_error
         self.redirect_to_null = redirect_to_null
@@ -43,6 +40,9 @@ class SurpressStdOutput():
             self._file.close()
         if etype is None or self.suppress_error:
             return True
+        # TODO(important) double check here with
+        #raise etype
+        # it seems that error is still surpressed for some reasons
         return False
 
     def clear_output(self):
@@ -81,11 +81,14 @@ class TestMain(unittest.TestCase):
         InteractiveShell.instance()
 
     def test_nb_checks(self):
+        # tests if the code_checker is initialized with the correct number of checks
         assert self.test_code_checker.nb_checks == 2
 
-    def test_code_checker_check(self):
-        self.test_code_checker.check(self.working_code_input)
-        self.assertRaises(NameError, self.test_code_checker.check, self.failing_name_error_code_input)
+    #def test_code_checker_check(self):
+    #    # tests if the checking a failing WidgetCodeInput outputs the correct exception 
+    #    self.test_code_checker.check(self.working_code_input)
+    #    self.assertRaises((NameError, utils.CodeValidationError), self.test_code_checker.check, self.failing_name_error_code_input)
+
 
     def test_code_demo_callback_on_display(self):
         # tests if on_displayed callback works properly
@@ -97,24 +100,45 @@ class TestMain(unittest.TestCase):
 
         self.test_code_demo.update_visualizers = update_function
         # display does not work for None stdout so we direct to null
-        with SurpressStdOutput(redirect_to_null=True):
+        with SupressStdOutput(redirect_to_null=True):
             display(self.test_code_demo)
         self.assertTrue(update_was_run)
 
     def test_code_demo_check(self):
+        # tests if .check() works properly
         self.test_code_demo.check()
 
     def test_code_demo_check_click(self):
+        # tests if check_button.click works properly
         self.test_code_demo.check_button.click()
+
+    @unittest.expectedFailure
+    def test_code_demo_without_update_button(self):
+        #Checks if an error is raised when CodeDemo without update buttons are updated 
+        code_demo = CodeDemo(
+                    input_parameters_box=self.parbox,
+                    visualizers=[ClearedOutput()],
+                    update_visualizers= lambda a, visualizer: a)
+        self.assertFalse(code_demo.has_update_button())
+        self.assertRaises(Exception,code_demo.update)
+
+    @unittest.expectedFailure
+    def test_code_demo_without_check_button(self):
+        #Checks if an error is raised when CodeDemos without check button are checked 
+        code_demo = CodeDemo(
+                    input_parameters_box=self.parbox,
+                    visualizers=[ClearedOutput()],
+                    update_visualizers= lambda a, visualizer: a)
+        self.assertFalse(code_demo.has_check_button())
+        self.assertRaises(Exception,code_demo.check)
 
     #def test_pyplot_output(self):
     #    # TODO(alex) gives a lot of deprecation warnings fix this before uncommenting test
     #    test_fig = plt.figure()
     #    PyplotOutput(test_fig)
 
-    def test_code_demo_check_button_enabled_after_erroneous_check(self):
+    def test_code_demo_check_after_erroneous_check(self):
         # Checks if the check button gets enabled again after a check has failed 
-
         # to verify that we actually have run the check function within the code demo
         failing_check_has_run = False
         def failing_check_function(a,b):
@@ -123,14 +147,18 @@ class TestMain(unittest.TestCase):
             raise NameError
             return False
         self.test_code_demo.code_checker.equality_function = failing_check_function
-        self.test_code_demo._error_output = SurpressStdOutput(suppress_error=True)
+        self.test_code_demo._error_output = SupressStdOutput(suppress_error=True)
         self.test_code_demo.check_button.click()
         self.assertTrue(failing_check_has_run)
-        self.assertFalse(self.test_code_demo.check_button.disabled)
+        # check if button_enabled
+        self.assertTrue(self.test_code_demo.check_button.status == CodeDemoStatus.CHECKED)
+        # check if validation text value is correct
+        nb_failed_checks = self.test_code_checker.nb_checks
+        ref_validation_text_value = "&nbsp;" * 4 +  f"<span style='color:red'> {nb_failed_checks} out of {self.test_code_checker.nb_checks} tests failed.</style>"
+        self.assertEqual(self.test_code_demo._validation_text.value, ref_validation_text_value)
 
     def test_code_demo_update_button_enabled_after_erroneous_update(self):
         # Checks if the update button gets enabled again after an update has failed 
-
         # to verify that we actually have run the update function within the code demo
         update_was_run = False
         def erroneous_update_function(a, wci, visualizers):
@@ -139,59 +167,88 @@ class TestMain(unittest.TestCase):
             raise NameError
         # TODO setter does not work why?
         self.test_code_demo.update_visualizers = erroneous_update_function
-        self.test_code_demo._error_output = SurpressStdOutput(suppress_error=True)
+        self.test_code_demo._error_output = SupressStdOutput(suppress_error=True)
         self.test_code_demo.update_button.click()
         self.assertTrue(update_was_run)
-        self.assertFalse(self.test_code_demo.update_button.disabled)
+        self.assertTrue(self.test_code_demo.update_button.status == CodeDemoStatus.UP_TO_DATE)
 
+@parameterized_class(("name","answer"), [
+   ("TextareaAnswer",TextareaAnswer(), )  ])
+#    ,   ("CodeDemo",CodeDemo(
+#             code_input=  WidgetCodeInput(
+#                 function_name="name", 
+#                 function_parameters="",
+#                 docstring="""""",
+#                 function_body="""body"""),
+#             input_parameters_box=None,
+#             visualizers=None,
+#             update_visualizers=None,
+#             code_checker=None,
+#             separate_check_and_update_buttons=False,
+#             update_on_input_parameter_change=False
+# ), )
+# ])
 class TestAnswerRegistry(unittest.TestCase):
     def setUp(self):
-        # @Joao setUp is invoked before each test, so you get clean objects for each test
         self.answer_registry = AnswerRegistry(prefix="test")
-        self.textarea_answer = TextareaAnswer() 
-        self.answer_registry._author_name_text.value = "Max Mustermann"
-        self.answer_registry.register_answer_widget("textarea_key", self.textarea_answer)
-        self.answer_registry._output = SurpressStdOutput()
+        self.answer_registry._student_name_text.value = "MaxMustermann"
+        self.answer_registry._create_savefile_button.click()
+        self.answer_registry.register_answer_widget("textarea_key", self.answer)
         InteractiveShell.instance()
 
     def tearDown(self):
-        # @Joao tearDown is invoked after each test, so you get clean every created file
-        if os.path.exists("test-MaxMustermann.json"):
-            os.remove("test-MaxMustermann.json")
+        if os.path.exists("test-maxmustermann.json"):
+            os.remove("test-maxmustermann.json")
+        self.answer_registry._reload_button.click()
 
+    def test_update_save_widgets(self):
+        # checks if a new callback has been created but widget stays the same
+        old_callback = self.answer_registry._callbacks["textarea_key"]
+        self.assertTrue(self.answer_registry._answer_widgets["textarea_key"] == self.answer)
+
+        self.answer_registry.register_answer_widget("textarea_key", self.answer)
+
+        self.assertTrue(self.answer_registry._answer_widgets["textarea_key"] == self.answer)
+        self.assertTrue(self.answer_registry._callbacks["textarea_key"] != old_callback)
+    def test_empty_name(self):
+        # checks if creation of a save file with empty name is prevented.
+        self.answer_registry._reload_button.click()
+        self.answer_registry._student_name_text.value = ""
+        self.answer_registry._create_savefile_button.click()
+        self.assertFalse(os.path.exists(self.answer_registry.prefix +"-.json"))
+    def test_forbidden_character(self):
+        # checks if creation of a save file with forbidden character is prevented.
+        self.answer_registry._reload_button.click()
+        forbidden_characters = "./\\"
+        for character in forbidden_characters:
+            self.answer_registry._student_name_text.value = character
+            self.answer_registry._create_savefile_button.click()
+            self.assertFalse(os.path.exists(self.answer_registry.prefix +"-"+character+".json"))
     def test_load_answers(self):
+        self.id().split('.')[-1]
         # Creates a new file with AnswerRegistry using the load_button and checks if file has been created
-        self.answer_registry._load_answers_button.click()
         self.assertTrue(os.path.exists("test-MaxMustermann.json"))
 
     def test_answer_correctly_saved(self):
-        # TODO(Joao) so here something similar as in the above text, now set answer_value in the textarea to s.th. and check if it is stored in the json file after clicking on the save button
-        #self.textarea_answer.answer_value = ... TODO
-        self.answer_registry._load_answers_button.click() 
-        self.textarea_answer._save_button.click()
+        # Checks if a saved answer and it's value are correctly saved in the Answer .json file
+        self.answer.answer_value = "saved_answer"
+        self.answer._save_button.click()
         # the answer_value should be now stored in the json answers file
-        # @Joao load the saved json file and check value of "textarea_key" 
         with open("test-MaxMustermann.json", "r") as answers_file:
-            saved_answers_file = json.load(answers_file) # <--- this is a dict
-            # TODO(Joao) check
+            saved_answers_file = json.load(answers_file)
+            self.assertTrue("textarea_key" in saved_answers_file)
+            self.assertEqual(saved_answers_file["textarea_key"],"saved_answer")
 
     def test_raise_error(self):
-        # TODO(Joao) This time we want to test if the error is correctly exectuted, when no answers file is loaded, but something is saved.
-        #            If we do not load any file, we cannot save the answer of the textarea anywhere, thus an error is raised for the user
-        #            The test is already written, but try to understand the logic here a bit
+        self.id().split('.')[-1]
+        # Checks if errors are correctly shown as Outputs in the notebook.
         assertTrue = self.assertTrue
-        # @Joao this is a bit complicated, it is explained here https://github.com/agoscinski/scicode-widgets-unofficial/issues/2
-        #       but its okay if you don't understand all the details
-        class AssertRaiseOutput(SurpressStdOutput):
+        class AssertRaiseOutput(SupressStdOutput):
             def __exit__(self, etype, evalue, tb):
                 super().__exit__(etype, evalue, tb)
                 nonlocal assertTrue
                 test_condition = etype is FileNotFoundError
-                assertTrue(test_condition) # <--- checks if the correct has been executed
+                assertTrue(test_condition) 
                 return True
-        self.textarea_answer._save_output = AssertRaiseOutput()
-        self.textarea_answer._save_button.click() # <-- @Joao clicking the button calls a saving function which raises the error
-    
-    # TODO(Joao) all the tests are also valid for CodeDemo, can you do them for CodeDemo
-    # If you want to not rewrite the whole test logic you can use the package `parametrized`
-    # https://stackoverflow.com/questions/32899/how-do-you-generate-dynamic-parameterized-unit-tests-in-python
+        self.answer._save_output = AssertRaiseOutput()
+        self.answer._save_button.click() 

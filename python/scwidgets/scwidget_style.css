@@ -1,0 +1,42 @@
+.scwidget-button{
+    border :  3px solid;
+    border-color: #f4f2f0;
+    background-color: #f4f2f0;
+    height: auto;
+}
+.scwidget-button--out-of-date{
+    border-color: #e95420;
+}
+.scwidget-button--unchecked{
+    border-color: #20b5e9;
+}
+
+.scwidget-box{
+    border : 1px solid;
+    border-color: #f4f2f0;
+    background-color: #f4f2f0;
+}
+.scwidget-box--out-of-date{
+    border-color: #e95420;
+    background-color: #e95420;
+}
+.scwidget-box--unchecked{
+    border-color: #20b5e9;
+    background-color: #20b5e9;
+}
+.scwidget-visualizer{
+    opacity: 1.0;
+}
+.scwidget-visualizer--out-of-date{
+    opacity: 0.4;
+}
+
+.scwidget-loading-image{
+    opacity: 0.0;
+}
+.scwidget-loading-image--updating{
+    opacity: 1.0;
+}
+.scwidget-loading-image--checking{
+    opacity: 1.0;
+}
