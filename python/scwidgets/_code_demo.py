@@ -40,7 +40,6 @@ with open(os.path.join(os.path.dirname(__file__), 'loading.gif'), 'rb') as file:
 class LoadingImage(ipywidgets.Image):
     """
     Custom image supporting visual changes depending on status of CodeDemo
-
     Parameters
     ----------
         code_demo_functionality : str, no default
@@ -95,7 +94,6 @@ class LoadingImage(ipywidgets.Image):
 class CodeDemoButton(ipywidgets.Button):
     """
     Custom button supporting visual changes depending on status of CodeDemo
-
     Parameters
     ----------
         code_demo_functionality : str, no default
@@ -173,7 +171,6 @@ class CodeDemoButton(ipywidgets.Button):
 class CodeDemoBox(ipywidgets.Box):
     """
     Custom box supporting visual changes depending on status of CodeDemo
-
     Parameters
     ----------
         code_demo_functionality : str, no default
@@ -242,34 +239,27 @@ class CodeDemoBox(ipywidgets.Box):
 class CodeDemo(VBox, Answer):
     """
     Widget to demonstrate code interactively in a variety of ways.
-
-    A code demo is in essence a combination of the widgets: one `code_input` + one `params_box` + one or more `code_visualizer`. Any widget can also be set None and is then not displayed.
-
-
+    A code demo is in essence a combination of the widgets: one `code_input` + one `input_parameters_box` + one or more `code_visualizer`. Any widget can also be set None and is then not displayed.
     Parameters
     ----------
         code_input : WidgetCodeInput, default=None
             An widget supporting the input of code usually for a student to fill in a solution.
-        params_box : ParametersBox, default=None
-        update_on_params_change : bool, default=True
-            Determines if the visualizers are instantly updated on a parameter change of `params_box`. If processing the code is computationally demanding, this parameter should be set to False for a better user experience. The user then has to manually update by a button click.
+        input_parameters_box : ParametersBox, default=None
         update_visualizers : function, default=None
             It processes the code `code_input` and to updae the `visualizers`. The `update_visualizers` function is assumed to support the signature
-            def update_visualizers(*params_box.paramaters, code_input if not None, visualizers if not None)
+            def update_visualizers(*input_parameters_box.paramaters, code_input if not None, visualizers if not None)
         visualizers : Iterable of Widgets or Widget, default=None
             Any kind of widget that can be displayed. Optionally the visualizer has a `before_visualizers_update` and/or a `after_visualizers_update` function which allows set up the visualizer before and after the `update_visualizers` function is executed
         code_checker : CodeChecker
             It handles the correctness check of the code in `code_input`.
-        merge_check_and_update: bool, default=False
+        separate_check_and_update_buttons: bool, default=False
             It handles the correctness check of the code in `code_input`.
-
     """
 
     def __init__(
         self,
         code_input=None,
         input_parameters_box=None,
-        update_on_input_parameter_change=True, # TODO name should also include check functionality
         visualizers=None,
         update_visualizers=None,
         check_registry=None,
@@ -277,7 +267,7 @@ class CodeDemo(VBox, Answer):
     ):
 
         self._code_input = code_input
-        self._params_box = params_box
+        self._input_parameters_box = input_parameters_box
 
         if visualizers is not None:
             if not (isinstance(visualizers, Iterable)):
@@ -287,7 +277,6 @@ class CodeDemo(VBox, Answer):
         else:
             self._visualizers = []
 
-        self._update_on_params_change = update_on_params_change
         self._update_visualizers = update_visualizers
         self._check_registry = check_registry
 
@@ -297,11 +286,6 @@ class CodeDemo(VBox, Answer):
         self._on_save_callback = None
         self._save_output = None
 
-        if (self._update_on_input_parameter_change) and (self._input_parameters_box is None):
-            warnings.warn(
-                "update_on_input_parameter_change is True, but input_parameters_box is None. update_on_input_parameter_change does not affect anything without a input_parameters_box. Setting update_on_input_parameter_change to False"
-            )
-            self._update_on_input_parameter_change = False
         # TODO should this be mentioned to the user?
         # if len(self._visualizers) == 0 and self._update_visualizers is not None:
         #    warnings.warn("self._update_visualizers is given without visualizers.")
@@ -466,7 +450,7 @@ class CodeDemo(VBox, Answer):
                     if self.update_button is not None:
                         control.observe(
                                 self.update_button.set_status_out_of_date, "value")
-                    if self._update_on_input_parameter_change:
+                    if self._input_parameters_box.update_mode != "click":
                         if self.has_check_functionality():
                             control.observe(self.check_and_update, "value")
                         else:
@@ -537,8 +521,8 @@ class CodeDemo(VBox, Answer):
         # to cover the cases where no code input is used
         no_code_input_demo = (
             (len(self._visualizers) > 0)
-            and (not (self._update_on_input_parameter_change))
             and (self._input_parameters_box is not None)
+            and (self._input_parameters_box.update_mode == "click")
         )
         with_code_input_demo = (
             len(self._visualizers) > 0 and self._code_input is not None
@@ -768,12 +752,8 @@ class CodeDemo(VBox, Answer):
         return self._code_input
 
     @property
-    def params_box(self):
-        return self._params_box
-
-    @property
-    def update_on_params_change(self):
-        return self._update_on_params_change
+    def input_parameters_box(self):
+        return self._input_parameters_box
 
     @property
     def visualizers(self):
@@ -793,20 +773,51 @@ class CodeDemo(VBox, Answer):
         return self._check_registry
 
     @property
-    def merge_check_and_update(self):
-        return self._merge_check_and_update
+    def separate_check_and_update_buttons(self):
+        return self._separate_check_and_update_buttons
 
 
 
 # TODO(low) checkbox
 class ParametersBox(VBox):
+    """
+    Widget to display and control a sequence of parameters.
+    
+    ----------
+        update_mode : string, default="auto"
+            Options : "auto" (update on slider release), "continuous" (continuous update, as in ipywidgets), "click" (requires button press to update).
+            Determines if the visualizers are instantly updated on a parameter change of `input_parameters_box`. 
+            If processing the code is computationally demanding, this parameter should be set to "click" for a better user experience. The user then has to manually update by a button click.
+
+ 
+    """
     value = traitlets.Dict({}, sync=True)
 
-    def __init__(self, **kwargs):
+    def __init__(self, 
+                update_mode=True, # TODO name should also include check functionality
+                **kwargs):
         # TODO make sure that order of the **kwargs is transparent for the user
         # TODO customization of parameters box 
         # TODO(low) continuous_update does not work atm, check later after the rest has been fixed
+        # @Joao: _update_mode is old _update_on_input_parameter_change from CodeDemo
+
+        self.update_mode = update_mode
+        if self.update_mode == "continuous":
+            self.continuous_update = True
+        else :
+            self.continuous_update = False
         self._controls = {}
+
+        #TODO @ Question from Joao: should update_mode/continuous_update be private properties ? If yes, how to properly use the getter (lines 453, 525) 
+        #@property
+        #def update_mode(self):
+        #    return self._update_mode
+
+        if (self.continuous_update) and (len(kwargs) == 0):
+            warnings.warn(
+                "update_mode is True, but input_parameters_box has no sliders. update_mode does not affect anything without parameters. Setting update_mode to 'auto'."
+            )
+            self.update_mode = False
         for k, v in kwargs.items():
             if type(v) is tuple:
                 if type(v[0]) is float:
@@ -824,7 +835,7 @@ class ParametersBox(VBox):
                         max=max,
                         step=step,
                         description=desc,
-                        continuous_update=False,
+                        continuous_update=self.continuous_update,
                         style={"description_width": "initial"},
                         layout=Layout(width="50%", min_width="5in"),
                         **slargs,
@@ -844,7 +855,7 @@ class ParametersBox(VBox):
                         max=max,
                         step=step,
                         description=desc,
-                        continuous_update=False,
+                        continuous_update=self.continuous_update,
                         style={"description_width": "initial"},
                         layout=Layout(width="50%", min_width="5in"),
                         **slargs,
@@ -854,7 +865,7 @@ class ParametersBox(VBox):
                     self._controls[k] = Checkbox(
                         value=val,
                         description=desc,
-                        continuous_update=False,
+                        continuous_update=self.continuous_update,
                         style={"description_width": "initial"},
                         layout=Layout(width="50%", min_width="5in"),
                         **slargs,
