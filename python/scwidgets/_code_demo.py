@@ -450,7 +450,7 @@ class CodeDemo(VBox, Answer):
                     if self.update_button is not None:
                         control.observe(
                                 self.update_button.set_status_out_of_date, "value")
-                    if self._input_parameters_box.update_mode != "click":
+                    if self._input_parameters_box.refresh_mode != "click":
                         if self.has_check_functionality():
                             control.observe(self.check_and_update, "value")
                         else:
@@ -522,7 +522,7 @@ class CodeDemo(VBox, Answer):
         no_code_input_demo = (
             (len(self._visualizers) > 0)
             and (self._input_parameters_box is not None)
-            and (self._input_parameters_box.update_mode == "click")
+            and (self._input_parameters_box.refresh_mode == "click")
         )
         with_code_input_demo = (
             len(self._visualizers) > 0 and self._code_input is not None
@@ -784,7 +784,7 @@ class ParametersBox(VBox):
     Widget to display and control a sequence of parameters.
     
     ----------
-        update_mode : string, default="auto"
+        refresh_mode : string, default="auto"
             Options : "auto" (update on slider release), "continuous" (continuous update, as in ipywidgets), "click" (requires button press to update).
             Determines if the visualizers are instantly updated on a parameter change of `input_parameters_box`. 
             If processing the code is computationally demanding, this parameter should be set to "click" for a better user experience. The user then has to manually update by a button click.
@@ -794,30 +794,26 @@ class ParametersBox(VBox):
     value = traitlets.Dict({}, sync=True)
 
     def __init__(self, 
-                update_mode=True, # TODO name should also include check functionality
+                refresh_mode=True, # TODO name should also include check functionality
                 **kwargs):
         # TODO make sure that order of the **kwargs is transparent for the user
         # TODO customization of parameters box 
-        # TODO(low) continuous_update does not work atm, check later after the rest has been fixed
-        # @Joao: _update_mode is old _update_on_input_parameter_change from CodeDemo
+        # TODO(low) change button logic in order to implement continuous_update without visual cue flickering
+        # @Joao: _refresh_mode is old _update_on_input_parameter_change from CodeDemo
 
-        self.update_mode = update_mode
-        if self.update_mode == "continuous":
-            self.continuous_update = True
+        self._refresh_mode = refresh_mode
+        if self._refresh_mode == "continuous":
+            #currently not implemented, we use only auto update
+            self.continuous_update = False
         else :
             self.continuous_update = False
         self._controls = {}
 
-        #TODO @ Question from Joao: should update_mode/continuous_update be private properties ? If yes, how to properly use the getter (lines 453, 525) 
-        #@property
-        #def update_mode(self):
-        #    return self._update_mode
-
         if (self.continuous_update) and (len(kwargs) == 0):
             warnings.warn(
-                "update_mode is True, but input_parameters_box has no sliders. update_mode does not affect anything without parameters. Setting update_mode to 'auto'."
+                "refresh_mode is True, but input_parameters_box has no sliders. refresh_mode does not affect anything without parameters. Setting refresh_mode to 'auto'."
             )
-            self.update_mode = False
+            self._refresh_mode = False
         for k, v in kwargs.items():
             if type(v) is tuple:
                 if type(v[0]) is float:
@@ -901,7 +897,9 @@ class ParametersBox(VBox):
         for k in self._controls:
             self._controls[k].observe(self._parameter_handler(k), "value")
             self.value[k] = self._controls[k].value
-
+    @property
+    def refresh_mode(self):
+        return self._refresh_mode
     @property
     def status(self):
         return self._status if hasattr(self, "_status") else None
