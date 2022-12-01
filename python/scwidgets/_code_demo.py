@@ -279,6 +279,8 @@ class CodeDemo(VBox, Answer):
 
         self._update_visualizers = update_visualizers
         self._check_registry = check_registry
+        if self._check_registry is not None:
+            self._check_registry.register_checks(self)
 
         self._separate_check_and_update_buttons = separate_check_and_update_buttons
 
@@ -495,14 +497,24 @@ class CodeDemo(VBox, Answer):
         # needed for chemiscope, chemiscope does not acknowledge updates of settings
         # until the widget has been displayed
         # TODO why this function does not work "self.on_displayed(self, self.update)"  but this one?
+        if self.has_check_functionality():
+             if self.check_button is not None:
+                 self.check_button.disabled = False
+             self.set_status_unchecked()
+        if self.has_update_functionality():
+            if self.update_button is not None:
+                self.update_button.disabled = False
+            self.set_status_out_of_date()
+
+
+    def run_and_display_demo(self):
         if self.has_update_functionality() and self.has_check_functionality():
-            self._check_registry.register_checks(self)
-            self._display_callbacks.register_callback(self.check_and_update)
+            self.check_and_update()
         elif self.has_update_functionality():
-            self._display_callbacks.register_callback(self.update)
+            self.update()
         elif self.has_check_functionality():
-            self._check_registry.register_checks(self)
-            self._display_callbacks.register_callback(self.check)
+            self.check()
+        IPython.display.display(self)
 
     def on_click_check_button(self, callback, remove=False):
         if self.check_button is not None:
