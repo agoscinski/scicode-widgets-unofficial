@@ -71,7 +71,7 @@ class AnswerRegistry(VBox):
     def standardize_filename(filename):
         return filename.lower()
 
-    def __init__(self, prefix=None):
+    def __init__(self, prefix=None, *args, **kwargs):
         self._prefix = prefix
         #prefix must be lowercase in order to ensure files are correctly maintained (only lowercase)
         self._callbacks = {}
@@ -99,9 +99,9 @@ class AnswerRegistry(VBox):
 
         self._current_dropdown_value = self._dropdown.value
         self._answer_widgets = {}
-        self._preoutput = Output(layout=Layout(width='100%', height='100%'))
-        self._output = Output(layout=Layout(width='100%', height='100%'))
-        super(AnswerRegistry, self).__init__(
+        self._preoutput = Output(layout=Layout(width='99%', height='99%'))
+        self._output = Output(layout=Layout(width='99%', height='99%'))
+        super().__init__(
                 [self._preoutput, self._savebox, self._output])
 
         #Stateful behavior:
@@ -273,8 +273,10 @@ class AnswerRegistry(VBox):
 class TextareaAnswer(VBox, Answer):
     """ A widget that contains a Textarea whose value can be saved"""
     def __init__(self, *args, **kwargs):
+        if 'layout' not in kwargs.keys():
+            kwargs['layout'] = Layout(width='99%')
         self._answer_textarea = Textarea(*args, **kwargs)
-        super(TextareaAnswer, self).__init__(
+        super(VBox, self).__init__(
                 [self._answer_textarea], layout=Layout(align_items="flex-start", width='100%'))
 
     @property
