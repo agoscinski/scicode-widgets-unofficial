@@ -287,7 +287,7 @@ class CodeDemo(VBox, Answer):
         self._save_button = None
         self._on_save_callback = None
         self._save_output = None
-
+        self._code_input.observe(self.set_status_not_saved,"function_body")
         # TODO should this be mentioned to the user?
         # if len(self._visualizers) == 0 and self._update_visualizers is not None:
         #    warnings.warn("self._update_visualizers is given without visualizers.")
@@ -610,7 +610,9 @@ class CodeDemo(VBox, Answer):
         if self._save_button is None and self._on_save_callback is None:
             self._init_save_widget(callback)
             self._save_output = self._error_output
-            save_widget = HBox([VBox([self._save_button],
+            #@Joao I believe this is doubled code with respect to _answer.py _init_save_widget(), 
+            # we should be able to just call save_widget = self._init_save_widget(callback)
+            save_widget = HBox([VBox([VBox([self._save_button,self._reload_answer_button])],
                         layout = Layout(display='flex',
                         flex_flow='column',
                         align_items='flex-end',

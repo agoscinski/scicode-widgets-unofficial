@@ -2,6 +2,7 @@ import os
 import json
 import functools
 import glob
+import enum
 
 from ipywidgets import (
     Output,
@@ -14,7 +15,9 @@ from ipywidgets import (
     Dropdown
 )
 
-
+class AnswerStatus(enum.Enum):
+    NOT_SAVED = 0
+    SAVED = 1
 
 class Answer:
     """An interface for a widget which contains an answer for a question that can be saved to a file by the widget."""
@@ -22,11 +25,31 @@ class Answer:
         self._save_output = Output()
         self._save_button = None
         self._on_save_callback = None
-
+        self._reload_answer_button = None
+        self._cached_value = None
     @property
     def save_output(self):
         return self._save_output
 
+    # for observe
+    def set_status_saved(self, change=None):
+       self.save_status = AnswerStatus.SAVED
+    def set_status_not_saved(self, change=None):
+       self.save_status = AnswerStatus.NOT_SAVED
+    @property
+    def save_status(self):
+        return self._save_status if hasattr(self, "_save_status") else None
+    @save_status.setter
+    def save_status(self, save_status):
+        if save_status == AnswerStatus.SAVED:
+            self._save_button.disabled = True
+            self._save_button.button_style = 'success'
+            self._save_button.description = 'Saved!'
+            self._reload_answer_button.disabled = True
+        if save_status == AnswerStatus.NOT_SAVED:
+            self._save_button.disabled = False
+            self._save_button.button_style = ''
+            self._reload_answer_button.disabled = False
     @property
     def answer_value(self):
         raise NotImplementedError("answer_value property has not been implemented.")
@@ -37,12 +60,16 @@ class Answer:
 
     def on_save(self):
         raise NotImplementedError("on_save has not been implemented.")
-
+    def on_reload_callback(self,change=None):
+        self.answer_value = self._cached_value
+        self.save_status = AnswerStatus.SAVED 
     def _init_save_widget(self, callback):
         self._save_button = Button(description="Save answer", layout=Layout(width="200px", height="100%"))
+        self._reload_answer_button = Button(description="Reload saved answer", layout=Layout(width="200px", height="100%"),disabled = True)
         self._on_save_callback = callback
         self._save_button.on_click(self._on_save_callback)
-        return VBox([self._save_button, self._save_output],
+        self._reload_answer_button.on_click(self.on_reload_callback)
+        return VBox([VBox([self._save_button,self._reload_answer_button]), self._save_output],
                 layout=Layout(align_items="flex-start")
         )
 
@@ -144,6 +171,7 @@ class AnswerRegistry(VBox):
                         raise ValueError(f"Your json file contains unexpected Answer with key : {answer_key}.  ")
                 else:
                     self._answer_widgets[answer_key].answer_value = answer_value
+                    self._answer_widgets[answer_key]._cached_value = answer_value
         if not error_occured:
             self._disable_savebox()
             self.children = [self._savebox, self._reload_button, self._output]
@@ -211,6 +239,8 @@ class AnswerRegistry(VBox):
             with open(self._answers_filename, "r") as answers_file:
                 answers = json.load(answers_file)
             answers[answer_key] = self._answer_widgets[answer_key].answer_value
+            self._answer_widgets[answer_key]._cached_value = self._answer_widgets[answer_key].answer_value
+            self._answer_widgets[answer_key].set_status_saved()
             with open(self._answers_filename, "w") as answers_file:
                 json.dump(answers , answers_file)
             # outputs message at the widget where the save button is attached to
@@ -278,6 +308,7 @@ class TextareaAnswer(VBox, Answer):
         self._answer_textarea = Textarea(*args, **kwargs)
         super(VBox, self).__init__(
                 [self._answer_textarea], layout=Layout(align_items="flex-start", width='100%'))
+        self._answer_textarea.observe(self.set_status_not_saved,"value") #@Joao added observe here
 
     @property
     def answer_value(self):
