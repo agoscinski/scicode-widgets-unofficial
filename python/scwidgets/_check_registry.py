@@ -18,9 +18,15 @@ class CheckRegistry:
         for check in self._checks[widget]:
             check.compute_and_set_reference_outputs()
 
-    def print_reference_outputs(self, widget):
-        for i, check in enumerate(self._checks[widget]):
-            print(f"Check {i}:\n{[reference_output for reference_output in check.compute_reference_outputs()]}")
+    def print_reference_outputs(self, widget, ignore_errors=False):
+        try:
+            for i, check in enumerate(self._checks[widget]):
+                print(f"Check {i}:\n{[reference_output for reference_output in check.compute_reference_outputs()]}")
+        except: 
+            if ignore_errors:
+                pass
+            else:
+                raise 
 
     def print_widget_outputs(self, widget, widget_output_to_str=None):
         if widget_output_to_str is None:
