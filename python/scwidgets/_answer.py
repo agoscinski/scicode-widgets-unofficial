@@ -47,9 +47,11 @@ class Answer:
             self._save_button.description = 'Saved!'
             self._reload_answer_button.disabled = True
         if save_status == AnswerStatus.NOT_SAVED:
+            self._save_button.description = 'Save answer'
             self._save_button.disabled = False
             self._save_button.button_style = ''
             self._reload_answer_button.disabled = False
+            self._save_output.clear_output()
     @property
     def answer_value(self):
         raise NotImplementedError("answer_value property has not been implemented.")
@@ -68,11 +70,26 @@ class Answer:
         self._reload_answer_button = Button(description="Reload saved answer", layout=Layout(width="200px", height="100%"),disabled = True)
         self._on_save_callback = callback
         self._save_button.on_click(self._on_save_callback)
-        self._reload_answer_button.on_click(self.on_reload_callback)
+        self._reload_answer_button.on_click(self._request_reload_confirmation)
         return VBox([VBox([self._save_button,self._reload_answer_button]), self._save_output],
                 layout=Layout(align_items="flex-start")
         )
-
+    def _request_reload_confirmation(self,change=""):
+        def collapse_after_confirmation(callback=None,change=""):
+            if callback != None:
+                callback()
+                self._save_output.clear_output()
+            else :
+                self._save_output.clear_output()
+        confirm_button = Button(description="Yes")
+        cancel_button = Button(description="Cancel")
+        confirm_button.on_click(lambda _: collapse_after_confirmation(self.on_reload_callback))
+        cancel_button.on_click(lambda _: collapse_after_confirmation())
+        with self._save_output:
+            self._save_output.clear_output()
+            print("Are you sure ? This will reload irreversibly your last saved answer.")
+            with self._save_output:
+                display(HBox([confirm_button,cancel_button]))
     def _update_save_widget(self, callback):
         if self._save_button is not None and self._on_save_callback is not None:
             self._save_button.on_click(self._on_save_callback, remove=True)
@@ -128,6 +145,8 @@ class AnswerRegistry(VBox):
         self._answer_widgets = {}
         self._preoutput = Output(layout=Layout(width='99%', height='99%'))
         self._output = Output(layout=Layout(width='99%', height='99%'))
+        self._save_all_button = Button(description = 'Save all answers')
+        self._save_all_button.on_click(self._request_confirmation)
         super().__init__(
                 [self._preoutput, self._savebox, self._output])
 
@@ -153,7 +172,6 @@ class AnswerRegistry(VBox):
                 self._savebox.children = [self._dropdown, self._load_answers_button]
         self._current_dropdown_value = change['new']
 
-
     def _load_answers(self, change=""):
         """
         loads registry when _load_answers_button is clicked
@@ -174,7 +192,7 @@ class AnswerRegistry(VBox):
                     self._answer_widgets[answer_key]._cached_value = answer_value
         if not error_occured:
             self._disable_savebox()
-            self.children = [self._savebox, self._reload_button, self._output]
+            self.children = [self._savebox, HBox([self._reload_button, self._save_all_button]), self._output]
             with self._output:
                 print(f"\033[92m File '{self._answers_filename}' loaded successfully.")
 
@@ -222,7 +240,7 @@ class AnswerRegistry(VBox):
             self._disable_savebox()
             self._json_list = list(dict.fromkeys([self._answers_filename] + self._json_list))
             self._dropdown.options = self._json_list
-            self.children = [self._savebox, self._reload_button, self._output]
+            self.children = [self._savebox,  HBox([self._reload_button, self._save_all_button]), self._output]
             self.clear_output()
             with self._output:
                 print(f"\033[92m File {self._answers_filename} successfully created and loaded.")
@@ -248,6 +266,29 @@ class AnswerRegistry(VBox):
                 print(f"The answer was successfully recorded in '{self._answers_filename}'")
             return True
 
+    def _request_confirmation(self,change=""):
+        def collapse_after_confirmation(callback=None,change=""):
+            if callback != None:
+                callback()
+                self.clear_output()
+                self._save_all_button.button_style = 'success'
+                self._save_all_button.description = 'Saved!'
+                with self._output : 
+                    print(f"All answers were successfully recorded in '{self._answers_filename}'")
+            else :
+                self.clear_output()
+            self.children = [self._savebox, HBox([self._reload_button, self._save_all_button]), self._output]
+        confirm_button = Button(description="Yes")
+        cancel_button = Button(description="Cancel")
+        confirm_button.on_click(lambda _: collapse_after_confirmation(self._save_all))
+        cancel_button.on_click(lambda _: collapse_after_confirmation())
+        with self._output:
+            self.clear_output()
+            print("Are you sure ? This will modify irreversibly your answer file.")
+            self.children = [self._savebox, HBox([self._reload_button, self._save_all_button]), HBox([self._output, confirm_button,cancel_button])]        
+    def _save_all(self,change=None):
+        for answer_key, widgets in self._answer_widgets.items():
+            widgets._save_button.click()
     @staticmethod
     def is_name_empty(name):
         return len(name) == name.count(" ")

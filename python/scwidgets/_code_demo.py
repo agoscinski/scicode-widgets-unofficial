@@ -133,8 +133,10 @@ class CodeDemoButton(ipywidgets.Button):
                 self.remove_class("scwidget-button--unchecked")
             elif status == CodeDemoStatus.CHECKED:
                 self.disabled = True
+                self.description = "Checked!"
                 self.remove_class("scwidget-button--unchecked")
             elif status == CodeDemoStatus.UNCHECKED:
+                self.description = "Check code"
                 self.disabled = False
                 self.add_class("scwidget-button--unchecked")
             elif status == CodeDemoStatus.UPDATING or status == CodeDemoStatus.UP_TO_DATE or status == CodeDemoStatus.OUT_OF_DATE:
@@ -287,7 +289,8 @@ class CodeDemo(VBox, Answer):
         self._save_button = None
         self._on_save_callback = None
         self._save_output = None
-        self._code_input.observe(self.set_status_not_saved,"function_body")
+        if self._code_input != None:
+            self._code_input.observe(self.set_status_not_saved,"function_body")
         # TODO should this be mentioned to the user?
         # if len(self._visualizers) == 0 and self._update_visualizers is not None:
         #    warnings.warn("self._update_visualizers is given without visualizers.")
