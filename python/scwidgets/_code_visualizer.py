@@ -63,6 +63,10 @@ class PyplotOutput(Output, CodeVisualizer):
             # self.figure.show()
             plt.show(self.figure.canvas)
 
+    def display(self):
+        with self:
+            plt.show(self.figure.canvas)
+
     def before_visualizers_update(self):
         for ax in self.figure.get_axes():
             if ax.has_data() or len(ax.artists) > 0:

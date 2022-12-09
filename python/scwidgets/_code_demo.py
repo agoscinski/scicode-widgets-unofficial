@@ -265,6 +265,7 @@ class CodeDemo(VBox, Answer):
         check_registry=None,
         separate_check_and_update_buttons=False,
     ):
+        self._display_handler = None
 
         self._code_input = code_input
         self._input_parameters_box = input_parameters_box
@@ -507,14 +508,24 @@ class CodeDemo(VBox, Answer):
             self.set_status_out_of_date()
 
 
-    def run_and_display_demo(self):
+    def run_and_display_demo(self, **kwargs):
         if self.has_update_functionality() and self.has_check_functionality():
             self.check_and_update()
         elif self.has_update_functionality():
             self.update()
         elif self.has_check_functionality():
             self.check()
-        IPython.display.display(self)
+        return self.display(**kwargs)
+
+    def display(self, **kwargs):
+        self._display_handler = IPython.display.display(self, **kwargs)
+        for visualizer in self.visualizers:
+            if hasattr(visualizer, "display"):
+                visualizer.display()
+
+        else:
+            self._display_handler = IPython.display.display(self, display_id=True, **kwargs)
+
 
     def on_click_check_button(self, callback, remove=False):
         if self.check_button is not None:
