@@ -2,6 +2,7 @@ import os
 import json
 import functools
 import glob
+import enum
 
 from ipywidgets import (
     Output,
@@ -14,7 +15,33 @@ from ipywidgets import (
     Dropdown
 )
 
+#TODO put this helper in a more meaningful place
+def request_confirmation(output,callback=None,warning=None,change=""):
+    """Callback wrapper that implements confirmation/cancel button before a given action/method. 
+    output : The output that will display Confirmation/Cancel buttons (and warnings if any are defined).
+    callback : Callback to be called if confirmation button is clicked. If None, confirmation button has the same behaviour as cancel button.
+    warning : Message to be shown with buttons, indicating to user the effect of confirming
+    """
+    def collapse_after_confirmation(callback=None,change=""):
+        if callback != None:
+            callback()
+        else :
+            output.clear_output()
+    confirm_button = Button(description="Yes")
+    cancel_button = Button(description="Cancel")
+    confirm_button.on_click(lambda _: collapse_after_confirmation(callback))
+    cancel_button.on_click(lambda _: collapse_after_confirmation())
+    with output:
+        output.clear_output()
+        if warning == None:
+            warning = "Are you sure ?"
+        print(warning)
+        with output:
+            display(HBox([confirm_button,cancel_button]))
 
+class AnswerStatus(enum.Enum):
+    NOT_SAVED = 0
+    SAVED = 1
 
 class Answer:
     """An interface for a widget which contains an answer for a question that can be saved to a file by the widget."""
@@ -22,10 +49,35 @@ class Answer:
         self._save_output = Output()
         self._save_button = None
         self._on_save_callback = None
-
+        self._reload_answer_button = None
+        self._cached_value = None
     @property
     def save_output(self):
         return self._save_output
+
+    # for observe
+    def set_status_saved(self, change=None):
+       self.save_status = AnswerStatus.SAVED
+    def set_status_not_saved(self, change=None):
+       self.save_status = AnswerStatus.NOT_SAVED
+
+    @property
+    def save_status(self):
+        return self._save_status if hasattr(self, "_save_status") else None
+    @save_status.setter
+
+    def save_status(self, save_status):
+        if save_status == AnswerStatus.SAVED:
+            self._save_button.disabled = True
+            self._save_button.remove_class("answer-not-saved")
+            self._save_button.description = 'Answer saved'
+            self._reload_answer_button.disabled = True
+        if save_status == AnswerStatus.NOT_SAVED:
+            self._save_button.description = 'Save answer'
+            self._save_button.disabled = False
+            self._save_button.add_class("answer-not-saved")
+            self._reload_answer_button.disabled = False
+            self._save_output.clear_output()
 
     @property
     def answer_value(self):
@@ -38,11 +90,17 @@ class Answer:
     def on_save(self):
         raise NotImplementedError("on_save has not been implemented.")
 
+    def on_reload_callback(self,change=None):
+        self.answer_value = self._cached_value
+        self.save_status = AnswerStatus.SAVED 
+
     def _init_save_widget(self, callback):
         self._save_button = Button(description="Save answer", layout=Layout(width="200px", height="100%"))
+        self._reload_answer_button = Button(description="Reload saved answer", layout=Layout(width="200px", height="100%"),disabled = True)
         self._on_save_callback = callback
         self._save_button.on_click(self._on_save_callback)
-        return VBox([self._save_button, self._save_output],
+        self._reload_answer_button.on_click(lambda _ : request_confirmation(self._save_output,self.on_reload_callback))
+        return VBox([VBox([self._save_button,self._reload_answer_button]), self._save_output],
                 layout=Layout(align_items="flex-start")
         )
 
@@ -101,6 +159,8 @@ class AnswerRegistry(VBox):
         self._answer_widgets = {}
         self._preoutput = Output(layout=Layout(width='99%', height='99%'))
         self._output = Output(layout=Layout(width='99%', height='99%'))
+        self._save_all_button = Button(description = 'Save all answers')
+        self._save_all_button.on_click(lambda _ : request_confirmation(self._output,self._save_all))
         super().__init__(
                 [self._preoutput, self._savebox, self._output])
 
@@ -112,6 +172,7 @@ class AnswerRegistry(VBox):
 
         with self._preoutput:
             print("Please choose a save file and confirm before answering questions.")
+
     def clear_output(self):
         self._output.clear_output()
 
@@ -125,7 +186,6 @@ class AnswerRegistry(VBox):
             else:
                 self._savebox.children = [self._dropdown, self._load_answers_button]
         self._current_dropdown_value = change['new']
-
 
     def _load_answers(self, change=""):
         """
@@ -144,9 +204,10 @@ class AnswerRegistry(VBox):
                         raise ValueError(f"Your json file contains unexpected Answer with key : {answer_key}.  ")
                 else:
                     self._answer_widgets[answer_key].answer_value = answer_value
+                    self._answer_widgets[answer_key]._cached_value = answer_value
         if not error_occured:
             self._disable_savebox()
-            self.children = [self._savebox, self._reload_button, self._output]
+            self.children = [self._savebox, HBox([self._reload_button, self._save_all_button]), self._output]
             with self._output:
                 print(f"\033[92m File '{self._answers_filename}' loaded successfully.")
 
@@ -194,7 +255,7 @@ class AnswerRegistry(VBox):
             self._disable_savebox()
             self._json_list = list(dict.fromkeys([self._answers_filename] + self._json_list))
             self._dropdown.options = self._json_list
-            self.children = [self._savebox, self._reload_button, self._output]
+            self.children = [self._savebox,  HBox([self._reload_button, self._save_all_button]), self._output]
             self.clear_output()
             with self._output:
                 print(f"\033[92m File {self._answers_filename} successfully created and loaded.")
@@ -211,6 +272,8 @@ class AnswerRegistry(VBox):
             with open(self._answers_filename, "r") as answers_file:
                 answers = json.load(answers_file)
             answers[answer_key] = self._answer_widgets[answer_key].answer_value
+            self._answer_widgets[answer_key]._cached_value = self._answer_widgets[answer_key].answer_value
+            self._answer_widgets[answer_key].set_status_saved()
             with open(self._answers_filename, "w") as answers_file:
                 json.dump(answers , answers_file)
             # outputs message at the widget where the save button is attached to
@@ -218,6 +281,14 @@ class AnswerRegistry(VBox):
                 print(f"The answer was successfully recorded in '{self._answers_filename}'")
             return True
 
+    def _save_all(self,change=None):
+        self._output.clear_output()
+        for widgets in self._answer_widgets.values():
+            widgets._save_button.click()
+        with self._output : 
+            print(f"All answers were successfully recorded in '{self._answers_filename}'")
+
+        
     @staticmethod
     def is_name_empty(name):
         return len(name) == name.count(" ")
@@ -278,6 +349,7 @@ class TextareaAnswer(VBox, Answer):
         self._answer_textarea = Textarea(*args, **kwargs)
         super(VBox, self).__init__(
                 [self._answer_textarea], layout=Layout(align_items="flex-start", width='100%'))
+        self._answer_textarea.observe(self.set_status_not_saved,"value") #@Joao added observe here
 
     @property
     def answer_value(self):

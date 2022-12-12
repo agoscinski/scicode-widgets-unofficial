@@ -5,9 +5,11 @@
     height: auto;
 }
 .scwidget-button--out-of-date{
+    background-color: #e95420;
     border-color: #e95420;
 }
 .scwidget-button--unchecked{
+    background-color: #20b5e9;
     border-color: #20b5e9;
 }
 
@@ -23,6 +25,10 @@
 .scwidget-box--unchecked{
     border-color: #20b5e9;
     background-color: #20b5e9;
+}
+.answer-not-saved{
+    border-color: #c0abe5;
+    background-color: #c0abe5;
 }
 .scwidget-visualizer{
     opacity: 1.0;
