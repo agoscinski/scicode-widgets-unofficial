@@ -26,6 +26,10 @@
     border-color: #20b5e9;
     background-color: #20b5e9;
 }
+.answer-not-saved{
+    border-color: #c0abe5;
+    background-color: #c0abe5;
+}
 .scwidget-visualizer{
     opacity: 1.0;
 }

@@ -69,13 +69,13 @@ class Answer:
     def save_status(self, save_status):
         if save_status == AnswerStatus.SAVED:
             self._save_button.disabled = True
-            self._save_button.button_style = ''
+            self._save_button.remove_class("answer-not-saved")
             self._save_button.description = 'Answer saved'
             self._reload_answer_button.disabled = True
         if save_status == AnswerStatus.NOT_SAVED:
             self._save_button.description = 'Save answer'
             self._save_button.disabled = False
-            self._save_button.button_style = 'warning'
+            self._save_button.add_class("answer-not-saved")
             self._reload_answer_button.disabled = False
             self._save_output.clear_output()
 
