@@ -31,7 +31,7 @@ from ipywidgets import (
 
 from ._answer import Answer
 from ._utils import CodeDemoStatus
-
+from ._code_visualizer import CodeVisualizer
 
 with open(os.path.join(os.path.dirname(__file__), 'loading.gif'), 'rb') as file:
     loading_img_byte = file.read()
@@ -450,8 +450,9 @@ class CodeDemo(VBox, Answer):
                         control.observe(
                                 self._update_visual_cues['visualizers'].set_status_out_of_date, "value")
                     for visualizer in self._visualizers:
-                        control.observe(
-                                visualizer.set_status_out_of_date, "value")
+                        if isinstance(visualizer,CodeVisualizer): #TODO @Question for Alex : how we make StructureWidgets from chemiscope adhere to the CodeVisualizer interface?
+                            control.observe(
+                                    visualizer.set_status_out_of_date, "value")
                     if self.update_button is not None:
                         control.observe(
                                 self.update_button.set_status_out_of_date, "value")
@@ -644,7 +645,8 @@ class CodeDemo(VBox, Answer):
         for visual_cue in self._update_visual_cues.values():
             visual_cue.set_status(status)
         for visualizer in self._visualizers:
-            visualizer.set_status(status)
+            if isinstance(visualizer,CodeVisualizer): #TODO  @Question for Alex : how we make StructureWidgets from chemiscope adhere to the CodeVisualizer interface?
+                visualizer.set_status(status)
         #if self._input_parameters_box is not None:
         #    self._input_parameters_box.set_status(status)
         self._loading_img.set_status(status)
@@ -821,7 +823,7 @@ class ParametersBox(VBox):
         self._refresh_mode = refresh_mode
         if self._refresh_mode == "continuous":
             #currently not implemented, we use only auto update
-            self.continuous_update = False
+            self.continuous_update = True
         else :
             self.continuous_update = False
         self._controls = {}

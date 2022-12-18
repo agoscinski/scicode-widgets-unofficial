@@ -27,8 +27,8 @@ def request_confirmation(output,callback=None,warning=None,change=""):
             callback()
         else :
             output.clear_output()
-    confirm_button = Button(description="Yes")
-    cancel_button = Button(description="Cancel")
+    confirm_button = Button(description="Yes",tooltip="Confirm")
+    cancel_button = Button(description="Cancel",tooltip="Cancel")
     confirm_button.on_click(lambda _: collapse_after_confirmation(callback))
     cancel_button.on_click(lambda _: collapse_after_confirmation())
     with output:
@@ -95,8 +95,8 @@ class Answer:
         self.save_status = AnswerStatus.SAVED 
 
     def _init_save_widget(self, callback):
-        self._save_button = Button(description="Save answer", layout=Layout(width="200px", height="100%"))
-        self._reload_answer_button = Button(description="Reload saved answer", layout=Layout(width="200px", height="100%"),disabled = True)
+        self._save_button = Button(description="Save answer", layout=Layout(width="200px", height="100%"),tooltip="Save answer to personal file")
+        self._reload_answer_button = Button(description="Reload saved answer", layout=Layout(width="200px", height="100%"),disabled = True,tooltip="Erase modifications and recover last saved answer")
         self._on_save_callback = callback
         self._save_button.on_click(self._on_save_callback)
         self._reload_answer_button.on_click(lambda _ : request_confirmation(self._save_output,self.on_reload_callback))
@@ -332,7 +332,6 @@ class AnswerRegistry(VBox):
  
     def register_answer_widget(self, answer_key, widget):
         self._answer_widgets[answer_key] = widget
-
         if isinstance(widget, Answer):
             self._callbacks[answer_key] = functools.partial(self._save_answer, answer_key=answer_key)
             widget.on_save(self._callbacks[answer_key])
