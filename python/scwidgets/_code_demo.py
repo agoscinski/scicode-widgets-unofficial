@@ -254,7 +254,7 @@ class CodeDemo(VBox, Answer):
             Any kind of widget that can be displayed. Optionally the visualizer has a `before_visualizers_update` and/or a `after_visualizers_update` function which allows set up the visualizer before and after the `update_visualizers` function is executed
         code_checker : CodeChecker
             It handles the correctness check of the code in `code_input`.
-        separate_check_and_update_buttons: bool, default=False
+        merge_check_and_update_buttons: bool, default=True
             It handles the correctness check of the code in `code_input`.
     """
 
@@ -265,10 +265,10 @@ class CodeDemo(VBox, Answer):
         visualizers=None,
         update_visualizers=None,
         check_registry=None,
-        separate_check_and_update_buttons=False,
+        merge_check_and_update_buttons=True,
     ):
 
-        self._code_input = code_input        
+        self._code_input = code_input
         self._input_parameters_box = input_parameters_box
 
         if visualizers is not None:
@@ -284,7 +284,7 @@ class CodeDemo(VBox, Answer):
         if self._check_registry is not None:
             self._check_registry.register_checks(self)
 
-        self._separate_check_and_update_buttons = separate_check_and_update_buttons
+        self._merge_check_and_update_buttons = merge_check_and_update_buttons
 
         if self._code_input != None:
             self._code_input.observe(self.set_status_not_saved,"function_body")
@@ -296,22 +296,22 @@ class CodeDemo(VBox, Answer):
                 "Non-empty not None `visualizers` are given but without a `update_visualizers` function. The `visualizers` are used by the code demo"
             )
         self._error_output = Output(layout=Layout(width="100%", height="100%"))
-        
+
         ### create check and update button BEGIN
         if self.has_check_button() and self.has_update_button():
-            if self._separate_check_and_update_buttons:
+            if not self._merge_check_and_update_buttons:
                 self._check_button = CodeDemoButton(code_demo_functionality="check",
                         description="Check code",
                         tooltip="Checks the correctness of the code",
                         layout=Layout(width="200px", height="100%"))
                 self._check_button.on_click(self.check)
-                self._check_button.set_status(CodeDemoStatus.CHECKING)
+                self._check_button.set_status(CodeDemoStatus.UNCHECKED)
                 self._update_button = CodeDemoButton(code_demo_functionality="update",
                         description="Rerun code and update",
                         tooltip="Reruns the code and updates the visualizers",
                         layout=Layout(width="200px", height="100%"))
                 self._update_button.on_click(self.update)
-                self._update_button.set_status(CodeDemoStatus.UPDATING)
+                self._update_button.set_status(CodeDemoStatus.OUT_OF_DATE)
                 self._demo_button_box = HBox([self._check_button, self._update_button])
             else:
                 if self._code_input is not None:
@@ -328,8 +328,8 @@ class CodeDemo(VBox, Answer):
                 self._update_button = check_and_update_button
                 self._check_button = check_and_update_button
                 # TODO check if making a merged status is not a better idea
-                check_and_update_button.set_status(CodeDemoStatus.CHECKING)
-                check_and_update_button.set_status(CodeDemoStatus.UPDATING)
+                check_and_update_button.set_status(CodeDemoStatus.UNCHECKED)
+                check_and_update_button.set_status(CodeDemoStatus.OUT_OF_DATE)
                 self._demo_button_box = HBox([check_and_update_button])
         elif not (self.has_check_button()) and self.has_update_button():
             if self._code_input is not None:
@@ -343,7 +343,7 @@ class CodeDemo(VBox, Answer):
                     tooltip=button_tooltip,
                     layout=Layout(width="200px", height="100%"))
             self._update_button.on_click(self.update)
-            self._update_button.set_status(CodeDemoStatus.UPDATING)
+            self._update_button.set_status(CodeDemoStatus.OUT_OF_DATE)
             self._demo_button_box = HBox([self._update_button])
         elif self.has_check_button() and not (self.has_update_button()):
             self._check_button = CodeDemoButton(code_demo_functionality="check",
@@ -351,7 +351,7 @@ class CodeDemo(VBox, Answer):
                     tooltip="Checks the correctness of the code",
                     layout=Layout(width="200px", height="100%"))
             self._check_button.on_click(self.check)
-            self._check_button.set_status(CodeDemoStatus.CHECKING)
+            self._check_button.set_status(CodeDemoStatus.UNCHECKED)
             self._demo_button_box = HBox([self._check_button])
         else:
             self._demo_button_box = HBox([])
@@ -370,9 +370,9 @@ class CodeDemo(VBox, Answer):
                 value=loading_img_byte,
             format='gif')
             if self.has_check_functionality():
-                self._loading_img.set_status(CodeDemoStatus.CHECKING)
+                self._loading_img.set_status(CodeDemoStatus.UNCHECKED)
             if self.has_update_functionality():
-                self._loading_img.set_status(CodeDemoStatus.UPDATING)
+                self._loading_img.set_status(CodeDemoStatus.OUT_OF_DATE)
             self._demo_button_box.children += (self._loading_img, )
 
         self._validation_text = HTML(value="", layout=Layout(width="100%", height="100%"))
@@ -385,21 +385,21 @@ class CodeDemo(VBox, Answer):
 
         if self.has_check_functionality() and self._code_input is not None:
             self._check_visual_cues['code_input'] = CodeDemoBox(code_demo_functionality="check")
-            self._check_visual_cues['code_input'].set_status(CodeDemoStatus.CHECKING)
+            self._check_visual_cues['code_input'].set_status(CodeDemoStatus.UNCHECKED)
 
         if self.has_update_functionality():
             if self._code_input is not None:
                 self._update_visual_cues['code_input'] = CodeDemoBox(code_demo_functionality="update")
-                self._update_visual_cues['code_input'].set_status(CodeDemoStatus.UPDATING)
+                self._update_visual_cues['code_input'].set_status(CodeDemoStatus.OUT_OF_DATE)
             if self._input_parameters_box is not None:
                 # _controls needs do be 
                 #self._input_parameters_box._controls.values():
                 for control_id, _ in self._input_parameters_box.controls.items():
                     self._update_visual_cues[f'parameter_box_{control_id}'] = CodeDemoBox(code_demo_functionality="update")
-                    self._update_visual_cues[f'parameter_box_{control_id}'].set_status(CodeDemoStatus.UPDATING)
+                    self._update_visual_cues[f'parameter_box_{control_id}'].set_status(CodeDemoStatus.UNCHECKED)
             if len(self._visualizers) > 0:
                 self._update_visual_cues['visualizers'] = CodeDemoBox(code_demo_functionality="update")
-                self._update_visual_cues['visualizers'].set_status(CodeDemoStatus.UPDATING)
+                self._update_visual_cues['visualizers'].set_status(CodeDemoStatus.OUT_OF_DATE)
         ### create visual cues END
 
         demo_widgets = []
@@ -510,15 +510,13 @@ class CodeDemo(VBox, Answer):
                 self.update_button.disabled = False
             self.set_status_out_of_date()
 
-
-    def run_and_display_demo(self):
+    def run_demo(self):
         if self.has_update_functionality() and self.has_check_functionality():
             self.check_and_update()
         elif self.has_update_functionality():
             self.update()
         elif self.has_check_functionality():
-            self.check()
-        IPython.display.display(self)
+            self.check()        
 
     def on_click_check_button(self, callback, remove=False):
         if self.check_button is not None:
@@ -565,7 +563,6 @@ class CodeDemo(VBox, Answer):
     def check_and_update(self, change=None):
         self.check(change)
         self.update(change)
-
 
     def check(self, change=None):
         """
@@ -784,8 +781,8 @@ class CodeDemo(VBox, Answer):
         return self._check_registry
 
     @property
-    def separate_check_and_update_buttons(self):
-        return self._separate_check_and_update_buttons
+    def merge_check_and_update_buttons(self):
+        return self._merge_check_and_update_buttons
 
 
 
