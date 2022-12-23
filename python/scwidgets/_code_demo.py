@@ -36,7 +36,7 @@ from ._code_visualizer import CodeVisualizer
 with open(os.path.join(os.path.dirname(__file__), 'loading.gif'), 'rb') as file:
     loading_img_byte = file.read()
 
-
+_FULL_WIDTH = '99%'   # hack to give the code widgets a bit more horizontal breathing space
 class LoadingImage(ipywidgets.Image):
     """
     Custom image supporting visual changes depending on status of CodeDemo
@@ -435,7 +435,7 @@ class CodeDemo(VBox, Answer):
                             self._update_visual_cues['visualizers'].set_status_out_of_date, "function_body")
                 code_input_panel.append(self._update_visual_cues['code_input'])
 
-            code_input_panel.append(VBox([self._code_input], layout=Layout(width='99%', height='auto')))
+            code_input_panel.append(VBox([self._code_input], layout=Layout(width=_FULL_WIDTH, height='auto')))
             demo_widgets.append(HBox(code_input_panel, layout=Layout(margin='0 0 20px 0')))
 
         if self._input_parameters_box is not None:
@@ -471,15 +471,15 @@ class CodeDemo(VBox, Answer):
             self._code_input_button_panel = HBox(
                                     [self._demo_button_box,
                                      self._validation_text],
-                                    layout=Layout(align_items="flex-start", width='100%',
+                                    layout=Layout(align_items="flex-start", width=_FULL_WIDTH,
                                         margin='0 0 20px 0')
                                 )
         elif (self.check_button is None) and (self.update_button is not None):
             self._code_input_button_panel = HBox([self._demo_button_box],
-                                    layout=Layout(align_items="flex-start", width='100%',
+                                    layout=Layout(align_items="flex-start", width=_FULL_WIDTH,
                                         margin='0 0 20px 0'))
         else:
-            self._code_input_button_panel =  HBox([self._demo_button_box], layout=Layout(align_items="flex-start", width='100%'))
+            self._code_input_button_panel =  HBox([self._demo_button_box], layout=Layout(align_items="flex-start", width=_FULL_WIDTH))
         demo_widgets.append(self._code_input_button_panel)
         demo_widgets.append(self._error_output)
 
@@ -487,13 +487,14 @@ class CodeDemo(VBox, Answer):
             if self.has_update_functionality():
                 demo_widgets.append(
                         HBox([self._update_visual_cues['visualizers'],
-                        VBox(self._visualizers, layout=Layout(width='100%'))],
-                        layout=Layout(width='99%'))
+                        VBox(self._visualizers, layout=Layout(width=_FULL_WIDTH))],
+                        layout=Layout(width=_FULL_WIDTH))
                     )
             else:
                 demo_widgets.append(HBox([VBox(self._visualizers)]))
 
-        super().__init__(demo_widgets)
+        # avoids horizontal scrollbar that tends to appear for no reasons regardless of how much we shrink the widget 
+        super().__init__(demo_widgets, layout=Layout(width=_FULL_WIDTH, overflow='hidden auto'))
 
         # inits answer interface 
         self._save_output = self._error_output # redirects save output to the error area
@@ -612,7 +613,7 @@ class CodeDemo(VBox, Answer):
                     layout = Layout(display='flex',
                     flex_flow='column',
                     align_items='flex-end',
-                    width='100%'))], layout=Layout(align_items="flex-end", width='100%')
+                    width=_FULL_WIDTH))], layout=Layout(align_items="flex-end", width='95%')
         )
         self._code_input_button_panel.children += (save_widget,)
 
