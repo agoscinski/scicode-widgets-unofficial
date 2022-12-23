@@ -47,10 +47,13 @@ class Answer:
     """An interface for a widget which contains an answer for a question that can be saved to a file by the widget."""
     def __init__(self):
         self._save_output = Output()
-        self._save_button = None
         self._on_save_callback = None
-        self._reload_answer_button = None
-        self._cached_value = None
+        self._on_load_callback = None
+
+        # inits default buttons but doesn't display or link them
+        self._save_button = Button(description="Save answer", layout=Layout(width="200px", height="100%"),tooltip="Save answer to personal file")        
+        self._load_button = Button(description="Reload answer", layout=Layout(width="200px", height="100%"),disabled = True,tooltip="Erase modifications and recover last saved answer")
+        
     @property
     def save_output(self):
         return self._save_output
@@ -71,12 +74,12 @@ class Answer:
             self._save_button.disabled = True
             self._save_button.remove_class("answer-not-saved")
             self._save_button.description = 'Answer saved'
-            self._reload_answer_button.disabled = True
+            self._load_button.disabled = True
         if save_status == AnswerStatus.NOT_SAVED:
             self._save_button.description = 'Save answer'
             self._save_button.disabled = False
             self._save_button.add_class("answer-not-saved")
-            self._reload_answer_button.disabled = False
+            self._load_button.disabled = False
             self._save_output.clear_output()
 
     @property
@@ -86,31 +89,29 @@ class Answer:
     @answer_value.setter
     def answer_value(self, new_answer_value):
         raise NotImplementedError("answer property setter has not been implemented.")
-
-    def on_save(self):
-        raise NotImplementedError("on_save has not been implemented.")
-
-    def on_reload_callback(self,change=None):
-        self.answer_value = self._cached_value
-        self.save_status = AnswerStatus.SAVED 
-
-    def _init_save_widget(self, callback):
-        self._save_button = Button(description="Save answer", layout=Layout(width="200px", height="100%"),tooltip="Save answer to personal file")
-        self._reload_answer_button = Button(description="Reload saved answer", layout=Layout(width="200px", height="100%"),disabled = True,tooltip="Erase modifications and recover last saved answer")
-        self._on_save_callback = callback
-        self._save_button.on_click(self._on_save_callback)
-        self._reload_answer_button.on_click(lambda _ : request_confirmation(self._save_output,self.on_reload_callback))
-        return VBox([VBox([self._save_button,self._reload_answer_button]), self._save_output],
-                layout=Layout(align_items="flex-start")
-        )
-
-    def _update_save_widget(self, callback):
-        if self._save_button is not None and self._on_save_callback is not None:
-            self._save_button.on_click(self._on_save_callback, remove=True)
-            self._on_save_callback = callback
-            self._save_button.on_click(self._on_save_callback)
+    
+    def show_answer_interface(self):
+        # default way to instrument an answer interface
+        if hasattr(self, "children"):
+            self.children += (VBox([VBox([self._save_button,self._load_button] 
+                                   if (self._on_load_callback is not None) else [self._save_button]), self._save_output],
+                layout=Layout(align_items="flex-start")),)
         else:
-            raise ValueError(f"Undefined state of save button: `self._save_button` is {self._save_button} and `self._on_save_callback` {self._on_save_callback}. Both should be None or not None")
+            raise ValueError("Widget doesn't have a Box interface, place the answer buttons manually")
+
+    def init_answer_callbacks(self, save_callback=None, load_callback=None):         
+        if save_callback is not None and self._save_button is not None:
+            # remove previous associations if present       
+            if self._on_save_callback is not None:
+                self._save_button.on_click(self._on_save_callback, remove=True)
+            self._on_save_callback = save_callback
+            self._save_button.on_click(self._on_save_callback)
+        
+        if load_callback is not None and self._load_button is not None:
+            if self._on_load_callback is not None:
+                self._load_button.on_click(self._on_load_callback, remove=True)
+            self._on_load_callback = load_callback
+            self._load_button.on_click(self._on_load_callback)
 
 class AnswerRegistry(VBox):
     """
@@ -165,7 +166,7 @@ class AnswerRegistry(VBox):
                 [self._preoutput, self._savebox, self._output])
 
         #Stateful behavior:
-        self._load_answers_button.on_click(self._load_answers)
+        self._load_answers_button.on_click(self._load_all)
         self._create_savefile_button.on_click(self._create_savefile)
         self._dropdown.observe(self._on_choice,names='value')
         self._reload_button.on_click(self._enable_savebox)
@@ -187,7 +188,17 @@ class AnswerRegistry(VBox):
                 self._savebox.children = [self._dropdown, self._load_answers_button]
         self._current_dropdown_value = change['new']
 
-    def _load_answers(self, change=""):
+    def _load_answer(self, change="", answer_key=""):        
+        with open(self._answers_filename, "r") as answers_file:
+            answers = json.load(answers_file)
+            if not answer_key in answers:
+                raise ValueError("Cannot load {answer_key} from answer file.")
+            if not answer_key in self._answer_widgets:
+                raise ValueError("Key {answer_key} is not associated with a registered answer widget.")
+            self._answer_widgets[answer_key].answer_value = answers[answer_key]
+            self._answer_widgets[answer_key].set_status_saved()
+
+    def _load_all(self, change=""):
         """
         loads registry when _load_answers_button is clicked
         """
@@ -204,7 +215,8 @@ class AnswerRegistry(VBox):
                         raise ValueError(f"Your json file contains unexpected Answer with key : {answer_key}.  ")
                 else:
                     self._answer_widgets[answer_key].answer_value = answer_value
-                    self._answer_widgets[answer_key]._cached_value = answer_value
+                    self._answer_widgets[answer_key].set_status_saved()
+
         if not error_occured:
             self._disable_savebox()
             self.children = [self._savebox, HBox([self._reload_button, self._save_all_button]), self._output]
@@ -272,7 +284,6 @@ class AnswerRegistry(VBox):
             with open(self._answers_filename, "r") as answers_file:
                 answers = json.load(answers_file)
             answers[answer_key] = self._answer_widgets[answer_key].answer_value
-            self._answer_widgets[answer_key]._cached_value = self._answer_widgets[answer_key].answer_value
             self._answer_widgets[answer_key].set_status_saved()
             with open(self._answers_filename, "w") as answers_file:
                 json.dump(answers , answers_file)
@@ -329,12 +340,13 @@ class AnswerRegistry(VBox):
         for key, answer_widget in self._answer_widgets.items() : 
             answer_widget.save_output.clear_output()
 
- 
     def register_answer_widget(self, answer_key, widget):
         self._answer_widgets[answer_key] = widget
         if isinstance(widget, Answer):
-            self._callbacks[answer_key] = functools.partial(self._save_answer, answer_key=answer_key)
-            widget.on_save(self._callbacks[answer_key])
+            self._callbacks[answer_key] = ( functools.partial(self._save_answer, answer_key=answer_key), 
+                                            functools.partial(self._load_answer, answer_key=answer_key) )
+            widget.init_answer_callbacks(*self._callbacks[answer_key])
+            widget.show_answer_interface()            
         else:
             raise ValueError(f"Widget {widget} is not of type {Answer.__name__}. Therefore does not support saving the of answer.")
 
@@ -357,10 +369,3 @@ class TextareaAnswer(VBox, Answer):
     @answer_value.setter
     def answer_value(self, new_answer_value):
         self._answer_textarea.value = new_answer_value
-
-    def on_save(self, callback):
-        if self._save_button is None and self._on_save_callback is None:
-            save_widget = self._init_save_widget(callback)
-            self.children += (save_widget,)
-        else:
-            self._update_save_widget(callback)

@@ -268,7 +268,7 @@ class CodeDemo(VBox, Answer):
         separate_check_and_update_buttons=False,
     ):
 
-        self._code_input = code_input
+        self._code_input = code_input        
         self._input_parameters_box = input_parameters_box
 
         if visualizers is not None:
@@ -286,9 +286,6 @@ class CodeDemo(VBox, Answer):
 
         self._separate_check_and_update_buttons = separate_check_and_update_buttons
 
-        self._save_button = None
-        self._on_save_callback = None
-        self._save_output = None
         if self._code_input != None:
             self._code_input.observe(self.set_status_not_saved,"function_body")
         # TODO should this be mentioned to the user?
@@ -299,7 +296,7 @@ class CodeDemo(VBox, Answer):
                 "Non-empty not None `visualizers` are given but without a `update_visualizers` function. The `visualizers` are used by the code demo"
             )
         self._error_output = Output(layout=Layout(width="100%", height="100%"))
-
+        
         ### create check and update button BEGIN
         if self.has_check_button() and self.has_update_button():
             if self._separate_check_and_update_buttons:
@@ -498,6 +495,9 @@ class CodeDemo(VBox, Answer):
 
         super().__init__(demo_widgets)
 
+        # inits answer interface 
+        self._save_output = self._error_output # redirects save output to the error area
+
         # needed for chemiscope, chemiscope does not acknowledge updates of settings
         # until the widget has been displayed
         # TODO why this function does not work "self.on_displayed(self, self.update)"  but this one?
@@ -610,23 +610,14 @@ class CodeDemo(VBox, Answer):
     def answer_value(self, new_answer_value):
         self.code_input.function_body = new_answer_value
 
-    def on_save(self, callback):
-        if self._save_button is None and self._on_save_callback is None:
-            self._init_save_widget(callback)
-            self._save_output = self._error_output
-            #@Joao I believe this is doubled code with respect to _answer.py _init_save_widget(), 
-            # we should be able to just call save_widget = self._init_save_widget(callback)
-            save_widget = HBox([VBox([VBox([self._save_button,self._reload_answer_button])],
-                        layout = Layout(display='flex',
-                        flex_flow='column',
-                        align_items='flex-end',
-                        width='100%'))], layout=Layout(align_items="flex-end", width='100%')
-            )
-            #self._demo_button_box.children += (save_widget,)
-            self._code_input_button_panel.children += (save_widget,)
-        else:
-            self._update_save_widget(callback)
-
+    def show_answer_interface(self):
+        save_widget = HBox([VBox([VBox([self._save_button,self._load_button])],
+                    layout = Layout(display='flex',
+                    flex_flow='column',
+                    align_items='flex-end',
+                    width='100%'))], layout=Layout(align_items="flex-end", width='100%')
+        )
+        self._code_input_button_panel.children += (save_widget,)
 
     @property
     def update_button(self):
