@@ -435,7 +435,7 @@ class CodeDemo(VBox, Answer):
                             self._update_visual_cues['visualizers'].set_status_out_of_date, "function_body")
                 code_input_panel.append(self._update_visual_cues['code_input'])
 
-            code_input_panel.append(VBox([self._code_input], layout=Layout(width='100%', height='auto')))
+            code_input_panel.append(VBox([self._code_input], layout=Layout(width='99%', height='auto')))
             demo_widgets.append(HBox(code_input_panel, layout=Layout(margin='0 0 20px 0')))
 
         if self._input_parameters_box is not None:
@@ -488,7 +488,7 @@ class CodeDemo(VBox, Answer):
                 demo_widgets.append(
                         HBox([self._update_visual_cues['visualizers'],
                         VBox(self._visualizers, layout=Layout(width='100%'))],
-                        layout=Layout(width='100%'))
+                        layout=Layout(width='99%'))
                     )
             else:
                 demo_widgets.append(HBox([VBox(self._visualizers)]))
@@ -698,15 +698,6 @@ class CodeDemo(VBox, Answer):
 
         if self.has_update_functionality():
             self.set_update_status(CodeDemoStatus.UP_TO_DATE)
-
-    def run_and_display_demo(self):
-        if self.has_update_functionality() and self.has_check_functionality():
-            self.check_and_update()
-        elif self.has_update_functionality():
-            self.update()
-        elif self.has_check_functionality():
-            self.check()
-        IPython.display.display(self)
 
     def compute_output(self, *args, **kwargs):
         # TODO remove function within function
