@@ -408,8 +408,8 @@ class CodeDemo(VBox, Answer):
             self._code_input.code_theme = 'default'
             code_input_panel = []
             if self.has_check_functionality():
-                #self._code_input.observe(
-                #        self.set_status_unchecked, "function_body")
+                self._code_input.observe(
+                        self.set_status_unchecked, "function_body")
                 self._code_input.observe(
                         self._check_visual_cues['code_input'].set_status_unchecked, "function_body")
                 self._code_input.observe(
@@ -630,7 +630,7 @@ class CodeDemo(VBox, Answer):
     # TODO still a bit twisted if check and update should be splitted
     # or buttons should handle cases where nothing happens?
     # we could merge update and check status
-    def set_update_status(self, status):
+    def set_update_status(self, status):        
         if self.update_button is not None:
             self.update_button.set_status(status)
         for visual_cue in self._update_visual_cues.values():
@@ -652,6 +652,7 @@ class CodeDemo(VBox, Answer):
 
     # for observe
     def set_status_unchecked(self, change=None):
+        self._validation_text.value = "&nbsp;" * 4  # clear validation text if it is unchecked
         self.set_check_status(CodeDemoStatus.UNCHECKED)
 
     # for observe
