@@ -58,9 +58,9 @@ class PyplotOutput(Output, CodeVisualizer):
         self.figure.canvas.toolbar_visible = True
         self.figure.canvas.header_visible = False
         self.figure.canvas.footer_visible = False
-        with self:
-            # self.figure.canvas.show() does not work, dont understand
-            # self.figure.show()
+
+        # redraw to an Output which is not displayed so that the first automatic draw of a new figure is suppressed in interactive mode
+        with Output():
             plt.show(self.figure.canvas)
 
     def display(self):

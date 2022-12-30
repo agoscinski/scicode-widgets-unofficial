@@ -507,24 +507,27 @@ class CodeDemo(VBox, Answer):
                 self.update_button.disabled = False
             self.set_status_out_of_date()
 
-
-    def run_and_display_demo(self, **kwargs):
+    def run_demo(self):
         if self.has_update_functionality() and self.has_check_functionality():
             self.check_and_update()
         elif self.has_update_functionality():
             self.update()
         elif self.has_check_functionality():
             self.check()
-        return self.display(**kwargs)
+
+    def display_and_run_demo(self, **kwargs):
+        self.display(**kwargs)
+        self.run_demo()
+
+    def run_demo_and_display(self, **kwargs):
+        self.run_demo()
+        self.display(**kwargs)
 
     def display(self, **kwargs):
-        self._display_handler = IPython.display.display(self, **kwargs)
+        self._display_handler = IPython.display.display(self, display_id=True, **kwargs)
         for visualizer in self.visualizers:
             if hasattr(visualizer, "display"):
                 visualizer.display()
-
-        else:
-            self._display_handler = IPython.display.display(self, display_id=True, **kwargs)
 
 
     def on_click_check_button(self, callback, remove=False):
@@ -714,14 +717,6 @@ class CodeDemo(VBox, Answer):
         if self.has_update_functionality():
             self.set_update_status(CodeDemoStatus.UP_TO_DATE)
 
-    def run_and_display_demo(self):
-        if self.has_update_functionality() and self.has_check_functionality():
-            self.check_and_update()
-        elif self.has_update_functionality():
-            self.update()
-        elif self.has_check_functionality():
-            self.check()
-        IPython.display.display(self)
 
     def compute_output(self, *args, **kwargs):
         # TODO remove function within function
