@@ -687,7 +687,7 @@ class CodeDemo(VBox, Answer):
                     self._update_visualizers(*parameters)
 
             if self._visualizers is not None:
-                for visualizer_output in self._visualizers:
+                for visualizer in self._visualizers:
                     if hasattr(visualizer, "after_visualizers_update"):
                         visualizer.after_visualizers_update()
         except Exception as e:

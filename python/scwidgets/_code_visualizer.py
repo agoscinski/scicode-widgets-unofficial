@@ -73,12 +73,11 @@ class PyplotOutput(Output, CodeVisualizer):
 
 
 class AnimationOutput(Output, CodeVisualizer):
-    def __init__(self, figure, verbose=True):
+    def __init__(self, figure):
         super().__init__()
         self.figure = figure
         self.animation = None
-        self.verbose = verbose
-
+    
     @property
     def figure(self):
         return self._figure
@@ -90,7 +89,7 @@ class AnimationOutput(Output, CodeVisualizer):
         new_figure.canvas.footer_visible = False
         plt.close(new_figure)
         self._figure = new_figure
-
+    
     def before_visualizers_update(self):
         self.clear_output()
         for ax in self.figure.get_axes():
@@ -100,10 +99,8 @@ class AnimationOutput(Output, CodeVisualizer):
     def after_visualizers_update(self):
         if self.animation is None:
             return
-        with self:
-            if self.verbose:
-                print("Displaying animation...")
-            display(IPython.display.HTML(self.animation.to_jshtml()), display_id=True)
+        with self:        
+            display(self.animation)
 
 
 class ClearedOutput(Output, CodeVisualizer):
