@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 from ipywidgets import Output
 
-import IPython.display
+from IPython.display import display
 
 from ._utils import CodeDemoStatus
 
@@ -99,9 +99,9 @@ class AnimationOutput(Output, CodeVisualizer):
     def after_visualizers_update(self):
         if self.animation is None:
             return
-        with self:        
-            display(self.animation)
 
+        with self:
+            display(self.animation)        
 
 class ClearedOutput(Output, CodeVisualizer):
     """Mini-wrapper for Output to provide an output space that gets cleared when it is updated e.g. to print some output or reload a widget."""

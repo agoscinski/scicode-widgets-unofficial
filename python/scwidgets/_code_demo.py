@@ -512,12 +512,8 @@ class CodeDemo(VBox, Answer):
             self.set_status_out_of_date()
 
     def run_demo(self):
-        if self.has_update_functionality() and self.has_check_functionality():
-            self.check_and_update()
-        elif self.has_update_functionality():
+        if self.has_update_functionality():
             self.update()
-        elif self.has_check_functionality():
-            self.check()        
 
     def on_click_check_button(self, callback, remove=False):
         if self.check_button is not None:
