@@ -55,7 +55,8 @@ class PyplotOutput(Output, CodeVisualizer):
         super().__init__(**kwargs)
 
         self.figure = figure
-        self.figure.canvas.toolbar_visible = True
+        self.figure.canvas.toolbar_visible = "fade-in-fade-out"
+        self.figure.canvas.toolbar_position = "right"
         self.figure.canvas.header_visible = False
         self.figure.canvas.footer_visible = False
         with self:

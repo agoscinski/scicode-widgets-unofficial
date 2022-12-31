@@ -4,6 +4,7 @@ import os
 import sys
 import traitlets
 import numpy as np
+import json 
 
 import traitlets
 
@@ -249,7 +250,7 @@ class CodeDemo(VBox, Answer):
         input_parameters_box : ParametersBox, default=None
         update_visualizers : function, default=None
             It processes the code `code_input` and to updae the `visualizers`. The `update_visualizers` function is assumed to support the signature
-            def update_visualizers(*input_parameters_box.paramaters, code_input if not None, visualizers if not None)
+            def update_visualizers(*input_parameters_box.parameters, code_input if not None, visualizers if not None)
         visualizers : Iterable of Widgets or Widget, default=None
             Any kind of widget that can be displayed. Optionally the visualizer has a `before_visualizers_update` and/or a `after_visualizers_update` function which allows set up the visualizer before and after the `update_visualizers` function is executed
         code_checker : CodeChecker
@@ -775,7 +776,7 @@ class CodeDemo(VBox, Answer):
 
 
 # TODO(low) checkbox
-class ParametersBox(VBox):
+class ParametersBox(VBox, Answer):
     """
     Widget to display and control a sequence of parameters.
     
@@ -914,6 +915,16 @@ class ParametersBox(VBox):
         elif not(isinstance(status, CodeDemoStatus)):
             raise ValueError(f"Status {status} is not a CodeDemoStatus.")
         self._status = status
+
+    @property
+    def answer_value(self):
+        return json.dumps(self.value)
+
+    @answer_value.setter
+    def answer_value(self, new_answer_value):
+        new_values = json.loads(new_answer_value)
+        for k in new_values:
+            self._controls[k].value = new_values[k]
 
     def set_status(self, status):
         self.status = status
