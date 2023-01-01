@@ -146,6 +146,7 @@ class AnswerRegistry(VBox):
         self._load_answers_button = Button(description='Confirm')
         self._create_savefile_button = Button(description='Confirm')
         self._reload_button = Button(description='Choose other file')
+        self._reload_all_answers_button = Button(description='Reload all answers',tooltip="Reload answers saved in .json file to notebook.")
         self._new_savefile = HBox([self._student_name_text, self._create_savefile_button])
         self._dropdown = Dropdown(
                             options=self._json_list,
@@ -161,7 +162,6 @@ class AnswerRegistry(VBox):
         self._preoutput = Output(layout=Layout(width='99%', height='99%'))
         self._output = Output(layout=Layout(width='99%', height='99%'))
         self._save_all_button = Button(description = 'Save all answers')
-        self._save_all_button.on_click(lambda _ : request_confirmation(self._output,self._save_all))
         super().__init__(
                 [self._preoutput, self._savebox, self._output])
 
@@ -170,7 +170,8 @@ class AnswerRegistry(VBox):
         self._create_savefile_button.on_click(self._create_savefile)
         self._dropdown.observe(self._on_choice,names='value')
         self._reload_button.on_click(self._enable_savebox)
-
+        self._save_all_button.on_click(lambda _ : request_confirmation(self._output,self._save_all))
+        self._reload_all_answers_button.on_click(lambda _ : request_confirmation(self._output,self._load_all))
         with self._preoutput:
             print("Please choose a save file and confirm before answering questions.")
 
@@ -219,7 +220,7 @@ class AnswerRegistry(VBox):
 
         if not error_occured:
             self._disable_savebox()
-            self.children = [self._savebox, HBox([self._reload_button, self._save_all_button]), self._output]
+            self.children = [self._savebox, HBox([self._reload_button, self._save_all_button,self._reload_all_answers_button]), self._output]
             with self._output:
                 print(f"\033[92m File '{self._answers_filename}' loaded successfully.")
 

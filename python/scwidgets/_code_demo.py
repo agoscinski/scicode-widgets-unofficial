@@ -463,6 +463,10 @@ class CodeDemo(VBox, Answer):
                 new_children = [
                         HBox([self._update_visual_cues[f'parameter_box_{control_id}'], control])
                     for control_id, control in self._input_parameters_box.controls.items()]
+                if self._input_parameters_box.save_parameters_as is not None:
+                    self._input_parameters_box.answer_registry.register_answer_widget(self._input_parameters_box.save_parameters_as, self._input_parameters_box)
+
+                    new_children.append(self._input_parameters_box.answer_interface())
                 self._input_parameters_box.children = tuple(new_children)
             demo_widgets.append(HBox([self._input_parameters_box],
                                     layout=Layout(margin='0 0 20px 0')
@@ -785,22 +789,26 @@ class ParametersBox(VBox, Answer):
             Options : "auto" (update on slider release), "continuous" (continuous update, as in ipywidgets), "click" (requires button press to update).
             Determines if the visualizers are instantly updated on a parameter change of `input_parameters_box`. 
             If processing the code is computationally demanding, this parameter should be set to "click" for a better user experience. The user then has to manually update by a button click.
+        save_parameters_as : string, name of the answer corresponding to the parameters
+        answer_registry : (AnswerRegistry), registry in which the answer will be saved.
 
  
     """
     value = traitlets.Dict({}, sync=True)
 
     def __init__(self, 
-                refresh_mode=True, # TODO name should also include check functionality
+                refresh_mode=True, # TODO name should also include check functionality 
+                save_parameters_as=None,
+                answer_registry=None,
                 **kwargs):
         # TODO make sure that order of the **kwargs is transparent for the user
         # TODO customization of parameters box 
         # TODO(low) change button logic in order to implement continuous_update without visual cue flickering
-        # @Joao: _refresh_mode is old _update_on_input_parameter_change from CodeDemo
-
+        # @Joao : the logic for saving answer of a ParametersBox is at the moment in CodeDemo due to the logic of ParametersBox .children/sliders being in CodeDemo (underlying reason unkown to me at the moment). TODO : move this to appropriate place when clear that it will not break the code elsewhere
+        self.save_parameters_as = save_parameters_as
         self._refresh_mode = refresh_mode
+        self.answer_registry = answer_registry
         if self._refresh_mode == "continuous":
-            #currently not implemented, we use only auto update
             self.continuous_update = True
         else :
             self.continuous_update = False
@@ -889,7 +897,7 @@ class ParametersBox(VBox, Answer):
         #      super(Widget, self).__init__(**kwargs)
         super().__init__()
         self.children = [control for control in self._controls.values()]
-
+    
         # links changes to the controls to the value dict
         for k in self._controls:
             self._controls[k].observe(self._parameter_handler(k), "value")
@@ -932,7 +940,11 @@ class ParametersBox(VBox, Answer):
     @property
     def controls(self):
         return self._controls
-
+    def answer_interface(self):
+        save_widget = HBox([VBox([HBox([self._save_button,self._load_button])])], layout=Layout(align_items="flex-end", width='95%')
+        )
+        stateful_behaviour = [control.observe(self.set_status_not_saved,"value") for control_id, control in self.controls.items()]
+        return save_widget
     def _parameter_handler(self, k):
         def _update_parameter(change):
             # traitlets.Dict cannot track updates, only assignment
