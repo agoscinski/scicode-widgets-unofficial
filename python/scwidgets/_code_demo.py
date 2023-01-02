@@ -531,32 +531,20 @@ class CodeDemo(VBox, Answer):
     def has_update_button(self):
         # used to determine if update button has to be initialized
         # to cover the cases where no code input is used
-        no_code_input_demo = (
-            (len(self._visualizers) > 0)
-            and (self._input_parameters_box is not None)
-            and (self._input_parameters_box.refresh_mode == "click")
+        return self.has_update_functionality() and (
+            self._code_input is not None or self._input_parameters_box is None 
+            or self._input_parameters_box.refresh_mode == "click"
         )
-        with_code_input_demo = (
-            len(self._visualizers) > 0 and self._code_input is not None
-        )
-        return (no_code_input_demo or with_code_input_demo)
 
     def has_update_functionality(self):
-        # to cover the cases where no code input is used
-        no_code_input_demo = (
-            (len(self._visualizers) > 0)
-            and (self._input_parameters_box is not None)
-        )
-        with_code_input_demo = (
-            len(self._visualizers) > 0 and self._code_input is not None
-        )
-        return no_code_input_demo or with_code_input_demo
+        # if there are visualizers, there is something that must be updated
+        return len(self._visualizers) > 0
 
     def has_check_functionality(self):
-        return self.has_check_button()
+        return self._check_registry is not None
 
     def has_check_button(self):
-        return self._check_registry is not None
+        return self.has_check_functionality()
 
     def check_and_update(self, change=None):
         self.check(change)
@@ -696,6 +684,10 @@ class CodeDemo(VBox, Answer):
 
         if self.has_update_functionality():
             self.set_update_status(CodeDemoStatus.UP_TO_DATE)
+        
+        # If there is nothing to update for changes, always leave the button clickable
+        if self.has_update_button() and self._code_input is None and self._input_parameters_box is None:
+            self.update_button.set_status(CodeDemoStatus.OUT_OF_DATE)
 
     def compute_output(self, *args, **kwargs):
         # TODO remove function within function
