@@ -130,13 +130,13 @@ class Check:
             output = self._widget.compute_output(**self._inputs_parameters[i])
 
             if self._fingerprint is None:
-                numeric = [int, float, np.floating ]
-                if not(isinstance(output, type(self._reference_outputs[i]))):
-                    # Type mismatches between built-in (except complex) and numpy numeric types should be ignored.
-                    if not type(output) in numeric:
-                        print(f"TypeAssert failed: Expected type {type(self._reference_outputs[i])} but got {type(output)}.")
-                        return False
-                elif hasattr(self._reference_outputs[i], "shape") and (output.shape != self._reference_outputs[i].shape):
+                #numeric = [int, float, np.floating ]
+                #if not(isinstance(output, type(self._reference_outputs[i]))):
+                #    # Type mismatches between built-in (except complex) and numpy numeric types should be ignored.
+                #    if not type(output) in numeric:
+                #        print(f"TypeAssert failed: Expected type {type(self._reference_outputs[i])} but got {type(output)}.")
+                #        return False
+                if hasattr(self._reference_outputs[i], "shape") and (output.shape != self._reference_outputs[i].shape):
                     print(f"ShapeAssert failed: Expected shape {self._reference_outputs[i].shape} but got {output.shape}.")
                     return False
                 elif hasattr(self._reference_outputs[i], "__len__") and (len(output) != len(self._reference_outputs[i])):

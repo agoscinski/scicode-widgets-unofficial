@@ -459,15 +459,8 @@ class CodeDemo(VBox, Answer):
                             control.observe(self.check_and_update, "value")
                         else:
                             control.observe(self.update, "value")
+                ### try to erase this and move the logic
 
-                new_children = [
-                        HBox([self._update_visual_cues[f'parameter_box_{control_id}'], control])
-                    for control_id, control in self._input_parameters_box.controls.items()]
-                if self._input_parameters_box.save_parameters_as is not None:
-                    self._input_parameters_box.answer_registry.register_answer_widget(self._input_parameters_box.save_parameters_as, self._input_parameters_box)
-
-                    new_children.append(self._input_parameters_box.answer_interface())
-                self._input_parameters_box.children = tuple(new_children)
             demo_widgets.append(HBox([self._input_parameters_box],
                                     layout=Layout(margin='0 0 20px 0')
                                     ))
@@ -709,43 +702,14 @@ class CodeDemo(VBox, Answer):
         else:
             suppress_stdout = False
         suppress_stdout = False
-        try:
             #if suppress_stdout:
             #    orig_stdout = sys.stdout
             #print(args, kwargs)
             #with ConfigurableOutput(suppress_std_out=False, suppress_std_err=False):
-            out = self._code_input.get_function_object()(*args, **kwargs)
+        out = self._code_input.get_function_object()(*args, **kwargs)
             #if suppress_stdout:
             #    sys.stdout = orig_stdout
-        except Exception as e:
-            # TODO hide trace before student code execution, not trivial
-            #if suppress_stdout:
-            #    sys.stdout = orig_stdout
-            # because some errors in code widgets do not print the
-            # traceback correctly, we print the last step manually
-            tb = sys.exc_info()[2]
-            while not (tb.tb_next is None):
-                tb = tb.tb_next
-            if tb.tb_frame.f_code.co_name == self._code_input.function_name:
-                # index = line-1
-                line_number = tb.tb_lineno - 1
-                code = (
-                    self._code_input.function_name
-                    + '"""\n'
-                    + self._code_input.docstring
-                    + '"""\n'
-                    + self._code_input.function_body
-                ).splitlines()
-                error = f"<widget_self._code_input.widget_self._code_input in {self._code_input.function_name}({self._code_input.function_parameters})\n"
-                for i in range(
-                    max(0, line_number - 2), min(len(code), line_number + 3)
-                ):
-                    if i == line_number:
-                        error += f"----> {i} {code[i]}\n"
-                    else:
-                        error += f"      {i} {code[i]}\n"
-                e.args = (str(e.args[0]) + "\n\n" + error,)
-            raise e
+
         return out
 
     @property
@@ -789,25 +753,16 @@ class ParametersBox(VBox, Answer):
             Options : "auto" (update on slider release), "continuous" (continuous update, as in ipywidgets), "click" (requires button press to update).
             Determines if the visualizers are instantly updated on a parameter change of `input_parameters_box`. 
             If processing the code is computationally demanding, this parameter should be set to "click" for a better user experience. The user then has to manually update by a button click.
-        save_parameters_as : string, name of the answer corresponding to the parameters
-        answer_registry : (AnswerRegistry), registry in which the answer will be saved.
-
- 
     """
     value = traitlets.Dict({}, sync=True)
 
     def __init__(self, 
                 refresh_mode=True, # TODO name should also include check functionality 
-                save_parameters_as=None,
-                answer_registry=None,
                 **kwargs):
         # TODO make sure that order of the **kwargs is transparent for the user
         # TODO customization of parameters box 
         # TODO(low) change button logic in order to implement continuous_update without visual cue flickering
-        # @Joao : the logic for saving answer of a ParametersBox is at the moment in CodeDemo due to the logic of ParametersBox .children/sliders being in CodeDemo (underlying reason unkown to me at the moment). TODO : move this to appropriate place when clear that it will not break the code elsewhere
-        self.save_parameters_as = save_parameters_as
         self._refresh_mode = refresh_mode
-        self.answer_registry = answer_registry
         if self._refresh_mode == "continuous":
             self.continuous_update = True
         else :
@@ -897,7 +852,6 @@ class ParametersBox(VBox, Answer):
         #      super(Widget, self).__init__(**kwargs)
         super().__init__()
         self.children = [control for control in self._controls.values()]
-    
         # links changes to the controls to the value dict
         for k in self._controls:
             self._controls[k].observe(self._parameter_handler(k), "value")
@@ -940,9 +894,10 @@ class ParametersBox(VBox, Answer):
     @property
     def controls(self):
         return self._controls
-    def answer_interface(self):
+    def show_answer_interface(self):
         save_widget = HBox([VBox([HBox([self._save_button,self._load_button])])], layout=Layout(align_items="flex-end", width='95%')
         )
+        self.children = [control for control in self._controls.values()] + [save_widget]
         stateful_behaviour = [control.observe(self.set_status_not_saved,"value") for control_id, control in self.controls.items()]
         return save_widget
     def _parameter_handler(self, k):
