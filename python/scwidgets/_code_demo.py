@@ -529,13 +529,14 @@ class CodeDemo(VBox, Answer):
         # used to determine if update button has to be initialized
         # to cover the cases where no code input is used
         return self.has_update_functionality() and (
-             self._code_input is not None or self._input_parameters_box is None 
-             or self._input_parameters_box.refresh_mode == "click"
-         )
+
+            self._code_input is not None or self._input_parameters_box is None 
+            or self._input_parameters_box.refresh_mode == "click"
+        )
 
     def has_update_functionality(self):
         # if there are visualizers, there is something that must be updated
-         return len(self._visualizers) > 0
+        return len(self._visualizers) > 0
 
     def has_check_functionality(self):
         return self._check_registry is not None
@@ -681,6 +682,10 @@ class CodeDemo(VBox, Answer):
 
         if self.has_update_functionality():
             self.set_update_status(CodeDemoStatus.UP_TO_DATE)
+        
+        # If there is nothing to update for changes, always leave the button clickable
+        if self.has_update_button() and self._code_input is None and self._input_parameters_box is None:
+            self.update_button.set_status(CodeDemoStatus.OUT_OF_DATE)
 
          # If there is nothing to update for changes, always leave the button clickable
         if self.has_update_button() and self._code_input is None and self._input_parameters_box is None:
